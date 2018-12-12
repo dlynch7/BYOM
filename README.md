@@ -4,8 +4,8 @@ Introductory project for Robot Design Studio (ME 495/EECS 495) 2019 at Northwest
 
 ## Parts list
 - [Turnigy TrackStar 21.5T sensored BLDC motor](https://hobbyking.com/en_us/turnigy-trackstar-21-5t-sensored-brushless-motor-1855kv-roar-approved.html)
-- Texas Instruments EK-TM4C123GXL LaunchPad (evaluation kit for TM4C123GH6PM microcontroller)
-- Texas Instruments BOOSTXL-DRV8323RS (evaluation kit for DRV8323Rx gate driver IC)
+- [Texas Instruments EK-TM4C123GXL LaunchPad](http://www.ti.com/tool/EK-TM4C123GXL) (evaluation kit for TM4C123GH6PM microcontroller)
+- [Texas Instruments BOOSTXL-DRV8323RS](http://www.ti.com/general/docs/litabsmultiplefilelist.tsp?literatureNumber=slvub01c) (evaluation kit for DRV8323Rx gate driver IC)
 
 ## BLDC connector
 The BLDC has a 6-pin connector, but because it isn't immediately clear what each pin does, I removed the top half of the can and did some probing with a multimeter.
