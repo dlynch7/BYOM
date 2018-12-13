@@ -3,5 +3,5 @@ Demonstrates how to use FreeRTOS for motor control
 
 ## Primary components
 - Timer-generated interrupt for motor control
-- Serial interface
-- Ring buffer shared between motor control interrupt service routine (ISR) and serial interface
+- Serial I/O tasks (interface with client script on PC)
+- Inter-process communication (IPC) between motor control ISR and serial I/O tasks
