@@ -29,43 +29,43 @@ I am reproducing it below and adding a column for the Tiva devboard pins.
 
 | BOOSTXL-DRV8323 pin   | BOOSTX-DRV8323 function   | MSP430 function   | Tiva function |
 | ------------          | -------------             | ------------      | ------------- |
-| J3-1                  | 3.3 V                     | 3.3 V             | ?             |
-| J3-2                  | no function               | 5 V               | ?             |
-| J3-3                  | VSENVM                    | P6.5, ADC - A5    | ?             |
-| J3-4                  | GND                       | GND               | ?             |
-| J3-5                  | no function               | P3.4, I/O pin     | ?             |
-| J3-6                  | VSENA                     | P6.0, ADC - 0     | ?             |
-| J3-7                  | no function               | P3.3, I/O pin     | ?             |
-| J3-8                  | VSENB                     | P6.1, ADC - 1     | ?             |
-| J3-9                  | ENABLE                    | P1.6, I/O w/ INT  | ?             |
-| J3-10                 | VSENC                     | P6.2, ADC - 2     | ?             |
-| J3-11                 | POT                       | P6.6, ADC - A6    | ?             |
-| J3-12                 | ISENC                     | P6.3, ADC - 3     | ?             |
-| J3-13                 | SCLK                      | P3.2, SPI CLK     | ?             |
-| J3-14                 | ISENB                     | P6.4, ADC - 4     | ?             |
-| J3-15                 | NFAULT                    | P2.7, I/O W/ INT  | ?             |
-| J3-16                 | ISENA                     | P7.0, ADC - 12    | ?             |
-| J3-17                 | no function               | P4.2, I/O pin     | ?             |
-| J3-18                 | IDRIVE                    | P3.6, I/O pin     | ?             |
-| J3-19                 | no function               | P4.1, I/O pin     | ?             |
-| J3-20                 | VDS                       | P3.5, I/O pin     | ?             |
-| J4-1                  | INHA                      | P2.5, TA2.2       | ?             |
-| J4-2                  | GND                       | GND               | ?             |
-| J4-3                  | INLA                      | P2.4, TA2.1       | ?             |
-| J4-4                  | HALLA                     | P2.0, SPI ENABLE  | ?             |
-| J4-5                  | INHB                      | P1.5, TA0.4       | ?             |
-| J4-6                  | HALLB                     | P2.2, I/O w/ INT  | ?             |
-| J4-7                  | INLB                      | P1.4, TA0.3       | ?             |
-| J4-8                  | no function               | P7.4, I/O pin     | ?             |
-| J4-9                  | INHC                      | P1.3, TA0.2       | ?             |
-| J4-10                 | no function               | RST               | ?             |
+| J3-1                  | 3.3 V                     | 3.3 V             | 3.3 V         |
+| J3-2                  | no function               | 5 V               | 5 V           |
+| J3-3                  | VSENVM                    | P6.5, ADC - A5    | ADC 11        |
+| J3-4                  | GND                       | GND               | GND           |
+| J3-5                  | no function               | P3.4, I/O pin     | I/O pin       |
+| J3-6                  | VSENA                     | P6.0, ADC - 0     | ADC 7         |
+| J3-7                  | no function               | P3.3, I/O pin     | I/O pin       |
+| J3-8                  | VSENB                     | P6.1, ADC - 1     | ADC 6         |
+| J3-9                  | ENABLE                    | P1.6, I/O w/ INT  | I/O w/ INT    |
+| J3-10                 | VSENC                     | P6.2, ADC - 2     | ADC 5         |
+| J3-11                 | POT                       | P6.6, ADC - A6    | ADC 8         |
+| J3-12                 | ISENC                     | P6.3, ADC - 3     | ADC 4         |
+| J3-13                 | SCLK                      | P3.2, SPI CLK     | SSI2 CLK      |
+| J3-14                 | ISENB                     | P6.4, ADC - 4     | ADC 2         |
+| J3-15                 | NFAULT                    | P2.7, I/O w/ INT  | I/O w/ INT    |
+| J3-16                 | ISENA                     | P7.0, ADC - 12    | ADC 1         |
+| J3-17                 | no function               | P4.2, I/O pin     | I/O pin       |
+| J3-18                 | IDRIVE                    | P3.6, I/O pin     | I/O pin       |
+| J3-19                 | no function               | P4.1, I/O pin     | I/O pin       |
+| J3-20                 | VDS                       | P3.5, I/O pin     | I/O pin       |
+| J4-1                  | INHA                      | P2.5, TA2.2       | M1PWM6        |
+| J4-2                  | GND                       | GND               | GND           |
+| J4-3                  | INLA                      | P2.4, TA2.1       | M1PWM7        |
+| J4-4                  | HALLA                     | P2.0, SPI ENABLE  | I/O pin       |
+| J4-5                  | INHB                      | P1.5, TA0.4       | T3CCP1        |
+| J4-6                  | HALLB                     | P2.2, I/O w/ INT  | I/O w/ INT    |
+| J4-7                  | INLB                      | P1.4, TA0.3       | M0PWM6        |
+| J4-8                  | no function               | P7.4, I/O pin     | I/O pin       |
+| J4-9                  | INHC                      | P1.3, TA0.2       | MOPWM7        |
+| J4-10                 | no function               | RST               | RST           |
 | J4-11                 | INLC                      | P1.2, TA0.1       | ?             |
-| J4-12                 | SDI                       | P3.0, MOSI        | ?             |
-| J4-13                 | MODE                      | P4.3, I/O pin     | ?             |
-| J4-14                 | SDO                       | P3.1, MISO        | ?             |
-| J4-15                 | LED                       | P4.0, I/O pin     | ?             |
-| J4-16                 | HALLC                     | P2.6, I/O w/ INT  | ?             |
-| J4-17                 | EVM ID                    | P3.7, I/O pin     | ?             |
-| J4-18                 | nSCS/GAIN                 | P2.2, I/O w/ INT  | ?             |
-| J4-19                 | EVM ID                    | P8.2, I/O pin     | ?             |
-| J4-20                 | CAL                       | P8.1, I/O pin     | ?             |
+| J4-12                 | SDI                       | P3.0, MOSI        | MOSI          |
+| J4-13                 | MODE                      | P4.3, I/O pin     | ? (want pwm)  |
+| J4-14                 | SDO                       | P3.1, MISO        | MISO          |
+| J4-15                 | LED                       | P4.0, I/O pin     | I/O pin       |
+| J4-16                 | HALLC                     | P2.6, I/O w/ INT  | I/O w/ INT    |
+| J4-17                 | EVM ID                    | P3.7, I/O pin     | I/O pin       |
+| J4-18                 | nSCS/GAIN                 | P2.2, I/O w/ INT  | I/O w/ INT    |
+| J4-19                 | EVM ID                    | P8.2, I/O pin     | I/O pin       |
+| J4-20                 | CAL                       | P8.1, I/O pin     | I/O pin       |
