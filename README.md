@@ -59,7 +59,7 @@ I am reproducing it below and adding a column for the Tiva devboard pins.
 | J4-8                  | no function               | P7.4, I/O pin     | I/O pin       |
 | J4-9                  | INHC                      | P1.3, TA0.2       | MOPWM7        |
 | J4-10                 | no function               | RST               | RST           |
-| J4-11                 | INLC                      | P1.2, TA0.1       | ?             |
+| J4-11                 | INLC                      | P1.2, TA0.1       | ? (want pwm)  |
 | J4-12                 | SDI                       | P3.0, MOSI        | MOSI          |
 | J4-13                 | MODE                      | P4.3, I/O pin     | ? (want pwm)  |
 | J4-14                 | SDO                       | P3.1, MISO        | MISO          |
