@@ -27,6 +27,9 @@ The BOOSTXL-DRV8323 motor driver devboard was designed to work TI's MSP430 devbo
 TI's documentation for the BOOSTXL-DRV8323 devboard provides a nice table detailing the pin connections between the BOOSTXL-DRV8323 and the MSP430 devboard and explains each pin's functions.
 I am reproducing it below and adding a column for the Tiva devboard pins.
 
+<details><summary> Click to expand pin compatibility table</summary>
+<p>
+
 | BOOSTXL-DRV8323 pin   | BOOSTX-DRV8323 function   | MSP430 function   | Tiva function |
 | ------------          | -------------             | ------------      | ------------- |
 | J3-1                  | 3.3 V                     | 3.3 V             | 3.3 V         |
@@ -69,3 +72,6 @@ I am reproducing it below and adding a column for the Tiva devboard pins.
 | J4-18                 | nSCS/GAIN                 | P2.2, I/O w/ INT  | I/O w/ INT    |
 | J4-19                 | EVM ID                    | P8.2, I/O pin     | I/O pin       |
 | J4-20                 | CAL                       | P8.1, I/O pin     | I/O pin       |
+
+</p>
+</details>
