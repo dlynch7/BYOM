@@ -1,0 +1,23 @@
+# Ignore list
+
+# Inner repos:
+# ...add them here
+
+# Build-related things:
+*.o
+*.elf
+*.axf
+*.bin
+*.a
+*.s
+*.sa
+*.so
+*.d
+*.swp
+*/build/
+build/
+
+# MATLAB files:
+*.asv
+*.fig
+*.mat
