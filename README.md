@@ -1,7 +1,9 @@
 # [B]uild [Y]our [O]wn [M]otor
 Build and control a brushless DC (BLDC) motor.
 
-Introductory project for Robot Design Studio (ME 495/EECS 495) 2019 at Northwestern University
+Introductory project for Robot Design Studio (ME 495/EECS 495) 2019 at Northwestern University.
+
+The project name is a bit of a misnomer: you won't build a motor from scratch, however you will be able to select from a number of motor winding options, giving you some degree of control over the motor's speed-torque curve.
 
 ## Parts list
 - [Turnigy TrackStar 21.5T sensored BLDC motor](https://hobbyking.com/en_us/turnigy-trackstar-21-5t-sensored-brushless-motor-1855kv-roar-approved.html)
