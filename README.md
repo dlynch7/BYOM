@@ -57,7 +57,7 @@ I am reproducing it below and adding a column for the Tiva devboard pins.
 | J4-1                  | INHA                      | P2.5, TA2.2           | PF2, M1PWM6        |
 | J4-2                  | GND                       | GND                   | GND                |
 | J4-3                  | INLA                      | P2.4, TA2.1           | PF3, M1PWM7        |
-| J4-4                  | HALLA                     | P2.0, SPI ENABLE      | PB2, I/O pin       |
+| J4-4                  | HALLA                     | P2.0, SPI ENABLE      | PB2, I/O w/ INT    |
 | J4-5                  | INHB                      | P1.5, TA0.4           | PB3, T3CCP1        |
 | J4-6                  | HALLB                     | P2.2, I/O w/ INT      | PE0, I/O w/ INT    |
 | J4-7                  | INLB                      | P1.4, TA0.3           | PC4, M0PWM6        |
