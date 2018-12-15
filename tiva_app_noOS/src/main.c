@@ -63,9 +63,10 @@
 
 #include "utils/uartstdio.h"
 
+#include "bldc.h"
 #include "circ_buffer.h"
-#include "setup.h"
 #include "drv8323rs.h"
+#include "setup.h"
 
 // Macros
 #define MOTOR_CONTROL_FREQ 1000 // frequency of timer A0 interrupt (in Hz)
@@ -95,7 +96,7 @@ void InitConsole(void)
 //*********************************************************************************************
 //
 // This function sets up timer A0 to generate interrupts
-// at frequency specified by SENSOR_POLL_FREQ (#define'd above)
+// at frequency specified by MOTOR_CONTROL_FREQ (#define'd above)
 //
 //*********************************************************************************************
 void TimerBegin(void)
@@ -141,17 +142,7 @@ void MotorControlInterruptHandler(void)
         if (toc >= 100) toc = 0;
     //}
 
-    // toggle the devboard's red LED:
-    if (tic == 0)
-    {
-        GPIOPinWrite(GPIO_PORTF_BASE, LED_RED, LED_RED); // LED on
-        tic = 1;
-    }
-    else
-    {
-        GPIOPinWrite(GPIO_PORTF_BASE, LED_RED, 0); // LED OFF
-        tic = 0;
-    }
+    
 }
 
 
@@ -183,11 +174,8 @@ int main(void) {
     // Set up the serial console to use for displaying messages:
     InitConsole();
 
-    LED_Init();
-    UARTprintf("LED on port F initialized.\n");
-
     // TODO: set up the interface to the DRV8323 motor driver
-    init_all_PWMs();
+    bldc_setup();
     //gSensorBufferWritePermission = 0; // MotorControlInterruptHandler() not permitted to write to buffer
     //gSensorBufferReadPermission = 0;  // main() not permitted to read from buffer
     //buffer_reset();
@@ -225,8 +213,6 @@ int main(void) {
                 // wait for read permission from SensorPollHandler():
                 //while(!buffer_full());
                 //gSensorBufferWritePermission = 0;
-                //GPIOPinWrite(GPIO_PORTF_BASE, LED_BLUE, 0); // BLUE LED OFF
-                //GPIOPinWrite(GPIO_PORTF_BASE, LED_GREEN, LED_GREEN); // GREEN LED ON
                 //for (i=0; i<NSAMPLES; i++) // NSAMPLES is #defined in circ_buffer.h
                 //{
                     //buffer_read(buf_line_ptr);
@@ -235,8 +221,6 @@ int main(void) {
 
                 //gSensorBufferWritePermission = 0; // disable write permission when done (safeguard)
                 //gSensorBufferReadPermission = 0;  // disable read permission when done
-                //GPIOPinWrite(GPIO_PORTF_BASE, LED_BLUE, 0); // BLUE LED OFF
-                //GPIOPinWrite(GPIO_PORTF_BASE, LED_GREEN, 0); // GREEN LED OFF
                 //break;
             //} // end 'r' case
             //default:

@@ -6,12 +6,14 @@
 #include "inc/hw_ints.h"
 #include "inc/hw_memmap.h"
 #include "inc/hw_pwm.h"
+#include "inc/hw_ssi.h"
 #include "inc/hw_timer.h"
 #include "inc/hw_types.h"
 #include "driverlib/gpio.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
 #include "driverlib/pwm.h"
+#include "driverlib/ssi.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 #include "driverlib/uart.h"
@@ -24,7 +26,7 @@
 // Private functions *
 //                   *
 //********************
-// create a 16-bit PWM module using Timer 3 CCP 1:
+// create a 16-bit PWM module using Timer 3 CCP1 on PB3 (drives DRV8323RS - INHB):
 static void init_timer_pwm(void) // based on tivaware/examples/peripherals/timer/pwm.c
 {
     // Enable the Timer3 peripheral.
@@ -57,7 +59,7 @@ static void init_timer_pwm(void) // based on tivaware/examples/peripherals/timer
     UARTprintf("PWM (via Timer3B) initialized.\n");
 }
 
-// initialize PWM0 module:
+// initialize PWM0 module on PC5 (drives DRV8323RS - INHC):
 static void init_PWM0(void)
 {
     // Configure PWM clock to match system.
@@ -91,7 +93,7 @@ static void init_PWM0(void)
     UARTprintf("PWM0 module initialized.\n");
 }
 
-// initialize PWM1 module:
+// initialize PWM1 module on PF2 (drives DRV8323RS - INHA):
 static void init_PWM1(void)
 {
     // Configure PWM clock to match system.
@@ -130,6 +132,59 @@ static void init_PWM1(void)
 // Public functions *
 //                  *
 //*******************
+
+// initialize PE4 as a digital output pin to drive the DRV8323RS ENABLE input:
+void init_drv8323rs_enable(void)
+{
+    UARTprintf("Initializing DRV8323RS Enable pin...\n");
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE); // enable the GPIO port used for DRV8323RS-enable
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOE)); // check if peripheral access enabled
+    GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, DRV8323RS_ENABLE_PIN); // enable pin PE4
+    GPIOPinWrite(GPIO_PORTE_BASE, DRV8323RS_ENABLE_PIN, 0); // initialize PE4 to LOW
+
+    // Display startup notification on serial console
+    UARTprintf("...DRV8323RS Enable pin initialized.\n");
+}
+
+// initialize a SPI module to communicate with the DRV8323RS:
+void init_drv8323rs_SPI(void)
+{
+    // pin map (Tiva --> BOOSTXL-DRV8323RS)
+    // - PA3 --> nSCS
+    // - PB4 --> SCLK
+    // - PB7 --> SDI (MOSI)
+    // - PB6 --> SDO (MISO)
+    // We will use SSI2 module (PB[7:4]) for SCLK, SDI, and SDO and use PA3 as a manual CS pin
+
+    UARTprintf("Initializing DRV8323RS SPI communication...\n");
+
+    // Set up PA3 as a manual CS pin
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA); // enable the GPIO port used for DRV8323RS-nSCS
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOA)); // check if peripheral access enabled
+    GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN); // enable pin PA3
+    GPIOPinWrite(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN, DRV8323RS_NSCS_PIN); // initialize PA3 to HIGH
+    UARTprintf("\t...SPI: nSCS pin enabled.\n");
+
+    // Set up SSI2 in master Freescale (SPI) mode.
+    // - we do not want to use SSI2Fss, we want to use our manual nSCS on PA3 instead.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); // use SSI2 on PB[7:4]
+    GPIOPinConfigure(GPIO_PB4_SSI2CLK); // SCLK
+    GPIOPinConfigure(GPIO_PB6_SSI2RX);  // MISO/SDO
+    GPIOPinConfigure(GPIO_PB7_SSI2TX);  // MOSI/SDI
+    GPIOPinTypeSSI(GPIO_PORTB_BASE, GPIO_PIN_4 | GPIO_PIN_6 | GPIO_PIN_7);
+
+    // Configure SSI2 for Freescale SPI - see DRV8323.pdf in documentation/ for details
+    SSIConfigSetExpClk(SSI2_BASE,SysCtlClockGet(),SSI_FRF_MOTO_MODE_1,
+                       SSI_MODE_MASTER,DRV8323RS_SPI_CLK_FREQ,DRV8323RS_SPI_WORD_LEN);
+    SSIEnable(SSI2_BASE); // enable SSI2 module. Make sure nSCS has already been set.
+    UARTprintf("\t...SPI: SSI2 base enabled.\n");
+
+    // Display startup notification on serial console:
+    UARTprintf("...DRV8323RS SPI communication initialized.\n");
+}
+
 // initialize all 3 PWM modules
 void init_all_PWMs(void)
 {
