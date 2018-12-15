@@ -132,7 +132,7 @@ void MotorControlInterruptHandler(void)
         if (dec_count==DECIMATION) // DECIMATION is defined in circ_buffer.h
         {
             //buffer_write(...TODO: fill in args...);
-            set_timer_dc(toc);
+            //set_timer_dc(toc);
             dec_count = 0;
             ++toc;
         }
@@ -187,9 +187,7 @@ int main(void) {
     UARTprintf("LED on port F initialized.\n");
 
     // TODO: set up the interface to the DRV8323 motor driver
-    init_timer_pwm();
-    init_PWM0();
-    init_PWM1();
+    init_all_PWMs();
     //gSensorBufferWritePermission = 0; // MotorControlInterruptHandler() not permitted to write to buffer
     //gSensorBufferReadPermission = 0;  // main() not permitted to read from buffer
     //buffer_reset();
