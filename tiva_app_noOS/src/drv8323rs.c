@@ -17,10 +17,15 @@
 #include "driverlib/uart.h"
 #include "utils/uartstdio.h"
 
-#define EQUIV_TIMER_PERIOD (PWM_PERIOD) // timer load value that results in PWM_PERIOD
+//#define EQUIV_TIMER_PERIOD (PWM_PERIOD) // timer load value that results in PWM_PERIOD
 
+//********************
+//                   *
+// Private functions *
+//                   *
+//********************
 // create a 16-bit PWM module using Timer 3 CCP 1:
-void init_timer_pwm(void) // based on tivaware/examples/peripherals/timer/pwm.c
+static void init_timer_pwm(void) // based on tivaware/examples/peripherals/timer/pwm.c
 {
     // Enable the Timer3 peripheral.
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
@@ -39,8 +44,8 @@ void init_timer_pwm(void) // based on tivaware/examples/peripherals/timer/pwm.c
     // Configure Timer3B as a 16-bit periodic timer.
     TimerConfigure(TIMER3_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM);
 
-    // Set the Timer3B load value to EQUIV_TIMER_PERIOD
-    TimerLoadSet(TIMER3_BASE, TIMER_B, EQUIV_TIMER_PERIOD);
+    // Set the Timer3B load value to PWM_PERIOD
+    TimerLoadSet(TIMER3_BASE, TIMER_B, PWM_PERIOD-1); // don't forget to -1 in the 'load' register!
 
     // Set the Timer3B match value to load value / 3.
     TimerMatchSet(TIMER3_BASE, TIMER_B, TimerLoadGet(TIMER3_BASE, TIMER_B) / 3);
@@ -48,19 +53,12 @@ void init_timer_pwm(void) // based on tivaware/examples/peripherals/timer/pwm.c
     // Enable Timer3B
     TimerEnable(TIMER3_BASE, TIMER_B);
 
-    UARTprintf("Timer 3B PWM enabled.\n");
-}
-
-// update duty cycle of the timer-generated PWM module:
-void set_timer_dc(uint8_t duty_cycle_pc)
-{
-    uint32_t load = TimerLoadGet(TIMER3_BASE, TIMER_B);
-    uint32_t match = ((uint32_t) load - (load*duty_cycle_pc)/100);
-    TimerMatchSet(TIMER3_BASE, TIMER_B, match);
+    // Display startup notification on serial console
+    UARTprintf("PWM (via Timer3B) initialized.\n");
 }
 
 // initialize PWM0 module:
-void init_PWM0(void)
+static void init_PWM0(void)
 {
     // Configure PWM clock to match system.
     SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
@@ -88,10 +86,13 @@ void init_PWM0(void)
 
     // Turn on the PWM output pin.
     PWMOutputState(PWM0_BASE, PWM_OUT_7_BIT, true);
+
+    // Display startup notification on serial console
+    UARTprintf("PWM0 module initialized.\n");
 }
 
 // initialize PWM1 module:
-void init_PWM1(void)
+static void init_PWM1(void)
 {
     // Configure PWM clock to match system.
     //SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
@@ -119,4 +120,49 @@ void init_PWM1(void)
 
     // Turn on the PWM output pin.
     PWMOutputState(PWM1_BASE, PWM_OUT_6_BIT, true);
+
+    // Display startup notification on serial console
+    UARTprintf("PWM1 module initialized.\n");
+}
+
+//*******************
+//                  *
+// Public functions *
+//                  *
+//*******************
+// initialize all 3 PWM modules
+void init_all_PWMs(void)
+{
+    // Display startup notification on serial console
+    UARTprintf("Initializing PWM modules...\n");
+    init_timer_pwm();
+    init_PWM0();
+    init_PWM1();
+
+    set_timer_pwm_dc(20);
+    set_pwm0_dc(20);
+    set_pwm1_dc(20);
+    UARTprintf("...All PWM modules have been initialized.\n");
+}
+
+// update duty cycle of the timer-generated PWM module:
+void set_timer_pwm_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
+{
+    uint32_t load = TimerLoadGet(TIMER3_BASE, TIMER_B);
+    uint32_t match = ((uint32_t) load - (load*duty_cycle_pc)/100);
+    TimerMatchSet(TIMER3_BASE, TIMER_B, match);
+}
+
+// update duty cycle of the timer-generated PWM module:
+void set_pwm0_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
+{
+    uint32_t width = ((uint32_t) (PWM_PERIOD*duty_cycle_pc)/100);
+    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, width);
+}
+
+// update duty cycle of the timer-generated PWM module:
+void set_pwm1_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
+{
+    uint32_t width = ((uint32_t) (PWM_PERIOD*duty_cycle_pc)/100);
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, width);
 }
