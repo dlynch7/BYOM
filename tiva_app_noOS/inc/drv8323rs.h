@@ -5,6 +5,11 @@
 
 #define DRV8323RS_ENABLE_PIN    GPIO_PIN_4 // DRV8323RS ENABLE is PE4 on Tiva
 
+// ADC macros
+#define ISENA_ADC 0x01
+#define ISENB_ADC 0x02
+#define ISENC_ADC 0x03
+
 // SPI-related macros
 #define DRV8323RS_NSCS_PIN      GPIO_PIN_3  // nSCS is PA3 on Tiva
 #define DRV8323RS_SPI_CLK_FREQ  1000000     // 1 MHz (max 10 MHz)
@@ -33,6 +38,9 @@ void init_drv8323rs_enable(void);
 // initialize a SPI module to communicate with the DRV8323RS:
 void init_drv8323rs_SPI(void);
 
+// initialize 3 ADC pins to read DRV8323RS ISEN{A:C} (current sense for each phase)
+void init_isense_ADCs(void);
+
 // initialize all 3 PWM modules:
 void init_all_PWMs(void);
 
@@ -49,5 +57,10 @@ void drv8323rs_spi_write(uint8_t address, uint16_t data);
 
 // SPI read from DRV8323RS:
 uint16_t drv8323rs_spi_read(uint8_t address);
+
+// ISENSE ADC read functions:
+void read_ISEN_ABC(uint32_t *phase_curr_arr); // phase_curr_arr must be length 4
+
+// ISENSE ADC --> currents
 
 #endif

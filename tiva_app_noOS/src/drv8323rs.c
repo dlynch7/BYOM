@@ -9,6 +9,7 @@
 #include "inc/hw_ssi.h"
 #include "inc/hw_timer.h"
 #include "inc/hw_types.h"
+#include "driverlib/adc.h"
 #include "driverlib/gpio.h"
 #include "driverlib/interrupt.h"
 #include "driverlib/pin_map.h"
@@ -29,6 +30,8 @@
 // create a 16-bit PWM module using Timer 3 CCP1 on PB3 (drives DRV8323RS - INHB):
 static void init_timer_pwm(void) // based on tivaware/examples/peripherals/timer/pwm.c
 {
+    UARTprintf("\t\tInitializing PWM (via Timer3B)...\n");
+
     // Enable the Timer3 peripheral.
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
 
@@ -56,12 +59,14 @@ static void init_timer_pwm(void) // based on tivaware/examples/peripherals/timer
     TimerEnable(TIMER3_BASE, TIMER_B);
 
     // Display startup notification on serial console
-    UARTprintf("PWM (via Timer3B) initialized.\n");
+    UARTprintf("\t\t...PWM (via Timer3B) initialized.\n");
 }
 
 // initialize PWM0 module on PC5 (drives DRV8323RS - INHC):
 static void init_PWM0(void)
 {
+    UARTprintf("\t\tInitializing PWM0 module...\n");
+
     // Configure PWM clock to match system.
     SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
 
@@ -90,14 +95,16 @@ static void init_PWM0(void)
     PWMOutputState(PWM0_BASE, PWM_OUT_7_BIT, true);
 
     // Display startup notification on serial console
-    UARTprintf("PWM0 module initialized.\n");
+    UARTprintf("\t\t...PWM0 module initialized.\n");
 }
 
 // initialize PWM1 module on PF2 (drives DRV8323RS - INHA):
 static void init_PWM1(void)
 {
+     UARTprintf("\t\tInitializing PWM1 module...\n");
+
     // Configure PWM clock to match system.
-    //SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
+    SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
 
     // Enable the peripherals used by this program.
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
@@ -124,7 +131,7 @@ static void init_PWM1(void)
     PWMOutputState(PWM1_BASE, PWM_OUT_6_BIT, true);
 
     // Display startup notification on serial console
-    UARTprintf("PWM1 module initialized.\n");
+    UARTprintf("\t\t...PWM1 module initialized.\n");
 }
 
 //*******************
@@ -136,7 +143,7 @@ static void init_PWM1(void)
 // initialize PE4 as a digital output pin to drive the DRV8323RS ENABLE input:
 void init_drv8323rs_enable(void)
 {
-    UARTprintf("Initializing DRV8323RS Enable pin...\n");
+    UARTprintf("\tInitializing DRV8323RS Enable pin...\n");
 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE); // enable the GPIO port used for DRV8323RS-enable
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOE)); // check if peripheral access enabled
@@ -144,7 +151,7 @@ void init_drv8323rs_enable(void)
     GPIOPinWrite(GPIO_PORTE_BASE, DRV8323RS_ENABLE_PIN, 0); // initialize PE4 to LOW
 
     // Display startup notification on serial console
-    UARTprintf("...DRV8323RS Enable pin initialized.\n");
+    UARTprintf("\t...DRV8323RS Enable pin initialized.\n");
 }
 
 // initialize a SPI module to communicate with the DRV8323RS:
@@ -157,14 +164,14 @@ void init_drv8323rs_SPI(void)
     // - PB6 --> SDO (MISO)
     // We will use SSI2 module (PB[7:4]) for SCLK, SDI, and SDO and use PA3 as a manual CS pin
 
-    UARTprintf("Initializing DRV8323RS SPI communication...\n");
+    UARTprintf("\tInitializing DRV8323RS SPI communication...\n");
 
     // Set up PA3 as a manual CS pin
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA); // enable the GPIO port used for DRV8323RS-nSCS
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOA)); // check if peripheral access enabled
     GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN); // enable pin PA3
     GPIOPinWrite(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN, DRV8323RS_NSCS_PIN); // initialize PA3 to HIGH
-    UARTprintf("\t...SPI: nSCS pin enabled.\n");
+    UARTprintf("\t\t...SPI: nSCS pin enabled.\n");
 
     // Set up SSI2 in master Freescale (SPI) mode.
     // - we do not want to use SSI2Fss, we want to use our manual nSCS on PA3 instead.
@@ -179,17 +186,37 @@ void init_drv8323rs_SPI(void)
     SSIConfigSetExpClk(SSI2_BASE,SysCtlClockGet(),SSI_FRF_MOTO_MODE_1,
                        SSI_MODE_MASTER,DRV8323RS_SPI_CLK_FREQ,DRV8323RS_SPI_WORD_LEN);
     SSIEnable(SSI2_BASE); // enable SSI2 module. Make sure nSCS has already been set.
-    UARTprintf("\t...SPI: SSI2 base enabled.\n");
+    UARTprintf("\t\t...SPI: SSI2 base enabled.\n");
 
     // Display startup notification on serial console:
-    UARTprintf("...DRV8323RS SPI communication initialized.\n");
+    UARTprintf("\t...DRV8323RS SPI communication initialized.\n");
+}
+
+// initialize 3 ADC pins to read DRV8323RS ISEN{A:C} (current sense for each phase)
+void init_isense_ADCs(void)
+{
+    UARTprintf("\tInitializing DRV8323RS current sense ADCs...\n");
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);    // need PE1/AIN2 (ISENB) and PE2/AIN1 (ISENA)
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);    // need PD3/AIN4 (ISENC)
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0)) {;} // wait until ADC0 module is ready
+    GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_1);    // PE1/AIN2 (ISENB)
+    GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_2);    // PE2/AIN1 (ISENA)
+    GPIOPinTypeADC(GPIO_PORTD_BASE, GPIO_PIN_3);    // PD3/AIN4 (ISENC)
+    ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_PROCESSOR, 0); // sequence 1 (SS1) - 4 samples
+    ADCSequenceStepConfigure(ADC0_BASE, 1, 0, ADC_CTL_CH4);
+    ADCSequenceStepConfigure(ADC0_BASE, 1, 1, ADC_CTL_CH2);
+    ADCSequenceStepConfigure(ADC0_BASE, 1, 2, ADC_CTL_CH1 | ADC_CTL_IE | ADC_CTL_END);
+    ADCSequenceEnable(ADC0_BASE, 1);
+    ADCIntClear(ADC0_BASE, 1);
+    UARTprintf("\t...DRV8323RS current sense ADCs initialized.\n");
 }
 
 // initialize all 3 PWM modules
 void init_all_PWMs(void)
 {
     // Display startup notification on serial console
-    UARTprintf("Initializing PWM modules...\n");
+    UARTprintf("\tInitializing PWM modules...\n");
     init_timer_pwm();
     init_PWM0();
     init_PWM1();
@@ -197,7 +224,7 @@ void init_all_PWMs(void)
     set_timer_pwm_dc(20);
     set_pwm0_dc(20);
     set_pwm1_dc(20);
-    UARTprintf("...All PWM modules have been initialized.\n");
+    UARTprintf("\t...All PWM modules have been initialized.\n");
 }
 
 // update duty cycle of the timer-generated PWM module:
@@ -269,10 +296,26 @@ void config_drv8323rs_pwm(uint16_t pwm_mode)
            (pwm_mode == PWM_3X_MODE) || (pwm_mode == PWM_6X_MODE))
     {
         drv8323rs_spi_write(DRIVER_CONTROL_REG,pwm_mode);
-        UARTprintf("Configured DRV8323RS to PWM mode %d.\n",pwm_mode >> PWM_MODE_FLD_LSB);
+        UARTprintf("\tConfigured DRV8323RS to PWM mode %d.\n",pwm_mode >> PWM_MODE_FLD_LSB);
     }
     else
     {
-        UARTprintf("Error: invalid PWM mode %d.\n",pwm_mode >> PWM_MODE_FLD_LSB);
+        UARTprintf("\tError: invalid PWM mode %d.\n",pwm_mode >> PWM_MODE_FLD_LSB);
     }
+}
+
+// ISENSE ADC read functions:
+void read_ISEN_ABC(uint32_t *phase_curr_arr) // read current sense for all 3 phases
+{
+    // Trigger the ADC conversion
+    ADCProcessorTrigger(ADC0_BASE, 1);
+
+    // Wait for conversion to be completed
+    while(!ADCIntStatus(ADC0_BASE, 1, false)) {;}
+
+    // Clear the ADC interrupt flag
+    ADCIntClear(ADC0_BASE, 1);
+
+    // phase_curr_arr must have 4 elements in it! No error checking here.
+    ADCSequenceDataGet(ADC0_BASE, 1, phase_curr_arr);
 }
