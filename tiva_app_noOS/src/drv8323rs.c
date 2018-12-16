@@ -221,3 +221,58 @@ void set_pwm1_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
     uint32_t width = ((uint32_t) (PWM_PERIOD*duty_cycle_pc)/100);
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, width);
 }
+
+// SPI write to DRV8323RS:
+void drv8323rs_spi_write(uint8_t address, uint16_t data)
+{
+    uint32_t ui32RxData = 0; // initialization
+    uint32_t *pui32RxData = &ui32RxData;
+
+    uint32_t ui32TxData = (((1 << 15) | (address << 11)) | (data & 0x7FF));
+    GPIOPinWrite(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN, 0);   // pull CS LOW
+    SysCtlDelay(50);                                        // delay before sending data
+    SSIDataPut(SSI2_BASE, ui32TxData);                      // send data
+    while(SSIBusy(SSI2_BASE)){;}                            // wait until data sent
+    SysCtlDelay(50);                                        // delay after sending data
+    GPIOPinWrite(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN, DRV8323RS_NSCS_PIN);   // pull CS HIGH
+    SSIDataGet(SSI2_BASE, pui32RxData);                     // empty RX buffer
+    SysCtlDelay(50);                                        // delay before next SPI operation?
+}
+
+// SPI read from DRV8323RS:
+uint16_t drv8323rs_spi_read(uint8_t address)
+{
+    // Check that address is valid:
+    if(address > 0x06) return(0); // valid register addresses are [0x06:0x00]
+
+    uint32_t ui32RxData = 0; // initialization
+    uint32_t *pui32RxData = &ui32RxData;
+
+    uint32_t ui32TxData = (((0 << 15) | (address << 11)));
+    GPIOPinWrite(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN, 0);   // pull CS LOW
+    SysCtlDelay(50);                                        // delay before sending data
+    SSIDataPut(SSI2_BASE, ui32TxData);                      // send data
+    while(SSIBusy(SSI2_BASE)){;}                            // wait until data sent
+    SysCtlDelay(50);                                        // delay after sending data
+    GPIOPinWrite(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN, DRV8323RS_NSCS_PIN);   // pull CS HIGH
+    SSIDataGet(SSI2_BASE, pui32RxData);                     // empty RX buffer
+    SysCtlDelay(50);                                        // delay before next SPI operation?
+
+    return ((uint16_t) (ui32RxData & 0x7FF));
+}
+
+// Configure DRV8323RS PWM mode:
+void config_drv8323rs_pwm(uint16_t pwm_mode)
+{
+    // Check that pwm_mode is valid:
+    if((pwm_mode == PWM_INDEPENDENT_MODE) || (pwm_mode == PWM_1X_MODE) ||
+           (pwm_mode == PWM_3X_MODE) || (pwm_mode == PWM_6X_MODE))
+    {
+        drv8323rs_spi_write(DRIVER_CONTROL_REG,pwm_mode);
+        UARTprintf("Configured DRV8323RS to PWM mode %d.\n",pwm_mode >> PWM_MODE_FLD_LSB);
+    }
+    else
+    {
+        UARTprintf("Error: invalid PWM mode %d.\n",pwm_mode >> PWM_MODE_FLD_LSB);
+    }
+}
