@@ -90,7 +90,7 @@ void InitConsole(void)
     GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1); // Select the alternate (UART) function$
     UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC); // Use the internal 16MHz oscillator as the UART$
     UARTStdioConfig(0, 115200, SysCtlClockGet()); // Initialize the UART for console I/O.
-    UARTprintf("\nConsole on UART0 is up.\n");
+    UARTprintf("\n\nConsole on UART0 is up.\n");
 }
 
 //*********************************************************************************************
