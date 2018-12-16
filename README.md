@@ -32,24 +32,24 @@ I am reproducing it below and adding a column for the Tiva devboard pins.
 <details><summary> Click to expand pin compatibility table</summary>
 <p>
 
-| BOOSTXL-DRV8323 pin   | BOOSTX-DRV8323 function   | MSP430 pin, function  | Tiva pin, function |
+| BOOSTXL-DRV8323 pin   | BOOSTXL-DRV8323 function   | MSP430 pin, function  | Tiva pin, function |
 | ------------          | -------------             | ------------          | -------------      |
 | J3-1                  | 3.3 V                     | 3.3 V                 | 3.3 V              |
 | J3-2                  | no function               | 5 V                   | 5 V                |
-| J3-3                  | VSENVM                    | P6.5, ADC - A5        | PB5, ADC 11        |
+| J3-3                  | VSENVM                    | P6.5, ADC - A5        | PB5, AIN 11        |
 | J3-4                  | GND                       | GND                   | GND                |
 | J3-5                  | no function               | P3.4, I/O pin         | PB0, I/O pin       |
-| J3-6                  | VSENA                     | P6.0, ADC - 0         | PD0, ADC 7         |
+| J3-6                  | VSENA                     | P6.0, ADC - 0         | PD0, AIN 7         |
 | J3-7                  | no function               | P3.3, I/O pin         | PB1, I/O pin       |
-| J3-8                  | VSENB                     | P6.1, ADC - 1         | PD1, ADC 6         |
+| J3-8                  | VSENB                     | P6.1, ADC - 1         | PD1, AIN 6         |
 | J3-9                  | ENABLE                    | P1.6, I/O w/ INT      | PE4, I/O w/ INT    |
-| J3-10                 | VSENC                     | P6.2, ADC - 2         | PD2, ADC 5         |
-| J3-11                 | POT                       | P6.6, ADC - A6        | PE5, ADC 8         |
-| J3-12                 | ISENC                     | P6.3, ADC - 3         | PD3, ADC 4         |
+| J3-10                 | VSENC                     | P6.2, ADC - 2         | PD2, AIN 5         |
+| J3-11                 | POT                       | P6.6, ADC - A6        | PE5, AIN 8         |
+| J3-12                 | ISENC                     | P6.3, ADC - 3         | PD3, AIN 4         |
 | J3-13                 | SCLK                      | P3.2, SPI CLK         | PB4, SSI2 CLK      |
-| J3-14                 | ISENB                     | P6.4, ADC - 4         | PE1, ADC 2         |
+| J3-14                 | ISENB                     | P6.4, ADC - 4         | PE1, AIN 2         |
 | J3-15                 | NFAULT                    | P2.7, I/O w/ INT      | PA5, I/O w/ INT    |
-| J3-16                 | ISENA                     | P7.0, ADC - 12        | PE2, ADC 1         |
+| J3-16                 | ISENA                     | P7.0, ADC - 12        | PE2, AIN 1         |
 | J3-17                 | no function               | P4.2, I/O pin         | PA6, I/O pin       |
 | J3-18                 | IDRIVE                    | P3.6, I/O pin         | PE3, I/O pin       |
 | J3-19                 | no function               | P4.1, I/O pin         | PA7, I/O pin       |
