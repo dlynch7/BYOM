@@ -205,8 +205,10 @@ int main(void) {
                 // prompt user for PWM duty cycle
                 //****int16_t newpwm = bldc_get_pwm();
                 // disable interrupts
+                //****IntMasterDisable();
                 //****pwm = newpwm;
                 // enable interrupts
+                //****IntMasterEnable();
                 //****bldc_commutate(pwm, state());
                 // permit SensorPollHandler() to write to circular buffer:
                 //gSensorBufferWritePermission = 1;
