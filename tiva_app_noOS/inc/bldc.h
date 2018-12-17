@@ -6,6 +6,8 @@
 
 #include <stdint.h>
 
+volatile uint8_t HallState;
+
 // Set up peripherals required to interface with DRV8323RS driver:
 // - 6 PWM modules
 // - ## GPIO pins, configured as outputs (Tiva --> DRV8323RS)
@@ -20,5 +22,8 @@ int16_t bldc_get_pwm(void);
 
 // print the phase currents to the serial console:
 void print_phase_currents(void);
+
+// print the hall state to the serial console:
+void print_hall_state(void);
 
 #endif

@@ -20,7 +20,10 @@
 #include "driverlib/uart.h"
 #include "utils/uartstdio.h"
 
-//#define EQUIV_TIMER_PERIOD (PWM_PERIOD) // timer load value that results in PWM_PERIOD
+// Global variables declared in this file:
+
+// Global variables declared in other files:
+extern uint8_t HallState;
 
 //********************
 //                   *
@@ -192,6 +195,37 @@ void init_drv8323rs_SPI(void)
     UARTprintf("\t...DRV8323RS SPI communication initialized.\n");
 }
 
+// initialize 3 GPIOs with input capture interrutps, to read DRV8323RS Hall sensors:
+// - Tiva pins PB2, PE0, and PA4 map to DRV8323RS HALLA, HALLB, and HALLC, respectively.
+void init_halls(void)
+{
+    SysCtlPeripheralEnable(HALLA_PERIPH);
+    SysCtlPeripheralEnable(HALLB_PERIPH);
+    SysCtlPeripheralEnable(HALLC_PERIPH);
+
+    GPIOIntRegister(HALLA_PORT, HallAIntHandler); // TODO: create HallAIntHandler() and add to vector table
+    GPIOIntRegister(HALLB_PORT, HallBIntHandler); // TODO: create HallBIntHandler() and add to vector table
+    GPIOIntRegister(HALLC_PORT, HallCIntHandler); // TODO: create HallCIntHandler() and add to vector table
+
+    GPIOPinTypeGPIOInput(HALLA_PORT, HALLA_PIN);
+    GPIOPinTypeGPIOInput(HALLB_PORT, HALLB_PIN);
+    GPIOPinTypeGPIOInput(HALLC_PORT, HALLC_PIN);
+
+    GPIOIntTypeSet(HALLA_PORT, HALLA_PIN, GPIO_BOTH_EDGES);
+    GPIOIntTypeSet(HALLB_PORT, HALLB_PIN, GPIO_BOTH_EDGES);
+    GPIOIntTypeSet(HALLC_PORT, HALLC_PIN, GPIO_BOTH_EDGES);
+
+    IntPrioritySet(HALLA_INT, 0x00); // TODO: does this priority conflict with any other interrupts?
+    IntPrioritySet(HALLB_INT, 0x00); // TODO: does this priority conflict with any other interrupts?
+    IntPrioritySet(HALLC_INT, 0x00); // TODO: does this priority conflict with any other interrupts?
+
+    GPIOIntEnable(HALLA_PORT, HALLA_PIN);
+    GPIOIntEnable(HALLB_PORT, HALLB_PIN);
+    GPIOIntEnable(HALLC_PORT, HALLC_PIN);
+
+    HallState = read_halls();
+}
+
 // initialize 3 ADC pins to read DRV8323RS ISEN{A:C} (current sense for each phase)
 void init_isense_ADCs(void)
 {
@@ -318,4 +352,49 @@ void read_ISEN_ABC(uint32_t *phase_curr_arr) // read current sense for all 3 pha
 
     // phase_curr_arr must have 4 elements in it! No error checking here.
     ADCSequenceDataGet(ADC0_BASE, 1, phase_curr_arr);
+}
+
+// Read all 3 Hall sensor states:
+uint8_t read_halls(void)
+{
+    return ((uint8_t) (((GPIOPinRead(HALLC_PORT, HALLC_PIN) & HALLC_PIN) >> 2) \
+                | ((GPIOPinRead(HALLB_PORT, HALLB_PIN) & HALLB_PIN) << 1) \
+                | ((GPIOPinRead(HALLA_PORT, HALLA_PIN) & HALLA_PIN) >> 2)));
+}
+
+// Hall sensor input capture interrupt handlers:
+void HallAIntHandler(void)
+{
+    GPIOIntClear(HALLA_PORT, HALLA_PIN);    // clear interrupt flag
+
+    // update Hall states:
+    HallState = read_halls();
+
+    //UARTprintf("Interrupt on H[A].\n");
+
+    // commutate:
+}
+
+void HallBIntHandler(void)
+{
+    GPIOIntClear(HALLB_PORT, HALLB_PIN);    // clear interrupt flag
+
+    // update Hall states:
+    HallState = read_halls();
+
+    //UARTprintf("Interrupt on H[B].\n");
+
+    // commutate:
+}
+
+void HallCIntHandler(void)
+{
+    GPIOIntClear(HALLC_PORT, HALLC_PIN);    // clear interrupt flag
+
+    // update Hall states:
+    HallState = read_halls();
+
+    //UARTprintf("Interrupt on H[C].\n");
+
+    // commutate:
 }

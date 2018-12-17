@@ -5,6 +5,22 @@
 
 #define DRV8323RS_ENABLE_PIN    GPIO_PIN_4 // DRV8323RS ENABLE is PE4 on Tiva
 
+// Hall sensor macros
+#define HALLA_PERIPH    SYSCTL_PERIPH_GPIOB
+#define HALLA_PORT      GPIO_PORTB_BASE
+#define HALLA_PIN       GPIO_PIN_2
+#define HALLA_INT       INT_GPIOB
+
+#define HALLB_PERIPH    SYSCTL_PERIPH_GPIOE
+#define HALLB_PORT      GPIO_PORTE_BASE
+#define HALLB_PIN       GPIO_PIN_0
+#define HALLB_INT       INT_GPIOE
+
+#define HALLC_PERIPH    SYSCTL_PERIPH_GPIOA
+#define HALLC_PORT      GPIO_PORTA_BASE
+#define HALLC_PIN       GPIO_PIN_4
+#define HALLC_INT       INT_GPIOA
+
 // ADC macros
 #define ISENA_ADC 0x01
 #define ISENB_ADC 0x02
@@ -38,6 +54,10 @@ void init_drv8323rs_enable(void);
 // initialize a SPI module to communicate with the DRV8323RS:
 void init_drv8323rs_SPI(void);
 
+// initialize 3 GPIOs with input capture interrutps, to read DRV8323RS Hall sensors:
+// - Tiva pins PB2, PE0, and PA4 map to DRV8323RS HALLA, HALLB, and HALLC, respectively.
+void init_halls(void);
+
 // initialize 3 ADC pins to read DRV8323RS ISEN{A:C} (current sense for each phase)
 void init_isense_ADCs(void);
 
@@ -62,5 +82,13 @@ uint16_t drv8323rs_spi_read(uint8_t address);
 void read_ISEN_ABC(uint32_t *phase_curr_arr); // phase_curr_arr must be length 4
 
 // ISENSE ADC --> currents
+
+// read all 3 Hall sensor states:
+uint8_t read_halls(void);
+
+// Hall sensor input capture interrupt handlers:
+void HallAIntHandler(void);
+void HallBIntHandler(void);
+void HallCIntHandler(void);
 
 #endif

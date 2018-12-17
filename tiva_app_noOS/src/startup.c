@@ -42,6 +42,10 @@ static void IntDefaultHandler(void);
 //
 //*****************************************************************************
 extern void MotorControlInterruptHandler(void);
+extern void HallAIntHandler(void);
+extern void HallBIntHandler(void);
+extern void HallCIntHandler(void);
+extern uint8_t HallState;
 
 //*****************************************************************************
 //
@@ -83,11 +87,11 @@ void (* const g_pfnVectors[])(void) =
     0,                                      // Reserved
     IntDefaultHandler,                      // The PendSV handler
     IntDefaultHandler,                      // The SysTick handler
-    IntDefaultHandler,                      // GPIO Port A
-    IntDefaultHandler,                      // GPIO Port B
+    HallCIntHandler,                        // GPIO Port A
+    HallAIntHandler,                        // GPIO Port B
     IntDefaultHandler,                      // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D
-    IntDefaultHandler,                      // GPIO Port E
+    HallBIntHandler,                        // GPIO Port E
     IntDefaultHandler,                      // UART0 Rx and Tx
     IntDefaultHandler,                      // UART1 Rx and Tx
     IntDefaultHandler,                      // SSI0 Rx and Tx

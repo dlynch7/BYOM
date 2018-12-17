@@ -52,15 +52,13 @@ void bldc_setup(void)
     init_all_PWMs();
 
     // set up digital input pins - input capture interrupts for Hall sensors
+    init_halls();
 
     // set up 3 analog inputs - current sense
     init_isense_ADCs();
 
     // set up SPI module - required to configure DRV8323RS
     init_drv8323rs_SPI();
-
-    // TODO: REMOVE WHEN ADC WORKS
-    print_phase_currents();
 
     // Configure DRV8323RS in 3x PWM mode
     // - INHx pins receive PWM signals
@@ -140,7 +138,7 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
 void bldc_commutate(int16_t pwm, uint8_t state)
 {
     // convert pwm to ticks
-    pwm = ((int16_t)PWM_PERIOD*pwm )/100; // TODO: #define PWM_PERIOD in drv8323rs.h
+    pwm = ((int16_t)PWM_PERIOD*pwm )/100;
 
     switch(state)
     {
@@ -186,12 +184,20 @@ void bldc_commutate(int16_t pwm, uint8_t state)
 // Prompt the user for a signed PWM percentage
 int16_t bldc_get_pwm(void);
 
-// print the phase currents to the serial console
+// print the phase currents to the serial console:
 void print_phase_currents(void)
 {
     uint32_t phase_curr_arr[4] = {0};
     read_ISEN_ABC(phase_curr_arr);
-    UARTprintf("Phase A ADC: 0d%d\n",phase_curr_arr[0]);
-    UARTprintf("Phase B ADC: 0d%d\n",phase_curr_arr[1]);
-    UARTprintf("Phase C ADC: 0d%d\n",phase_curr_arr[2]);
+    UARTprintf("[ADC] A: %d, B: %d, C: %d.\n",
+        phase_curr_arr[0],phase_curr_arr[1],phase_curr_arr[2]);
+}
+
+// print the hall state to the serial console:
+void print_hall_state(void)
+{
+    uint8_t temp_hall = HallState; // HallState is a global variable declared in bldc.h
+
+    UARTprintf("H[A]: %01X, H[B]: %01X, H[C]: %01X.\n",
+        temp_hall & 0x01, (temp_hall & 0x02) >> 1, (temp_hall & 0x04) >> 2);
 }

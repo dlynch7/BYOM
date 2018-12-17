@@ -69,7 +69,7 @@
 #include "setup.h"
 
 // Macros
-#define MOTOR_CONTROL_FREQ 1000 // frequency of timer A0 interrupt (in Hz)
+#define MOTOR_CONTROL_FREQ 10 // frequency of timer A0 interrupt (in Hz)
 #define MENU_BUF_LEN 2 // length of serial I/O buffer for receiving stuff from client PC program
 
 // Global variables
@@ -106,7 +106,7 @@ void TimerBegin(void)
     TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC); // Configure a 32-bit periodic timer.
     TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / MOTOR_CONTROL_FREQ);
     IntEnable(INT_TIMER0A); // Setup the interrupts for the timer timeouts.
-    IntPrioritySet(INT_TIMER0A, 0x00); // set the Timer 0A interrupt priority to be "HIGH"
+    IntPrioritySet(INT_TIMER0A, 0x20); // set the Timer 0A interrupt priority to be "low"
     TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
     TimerEnable(TIMER0_BASE, TIMER_A); // Enable the timer.
     UARTprintf("Timer A0 initialized at %d Hz!\n",MOTOR_CONTROL_FREQ);
@@ -125,6 +125,9 @@ void MotorControlInterruptHandler(void)
     // clear the timer interrupt:
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
+    print_phase_currents();
+    print_hall_state();
+
     // If the permission flag is set, get ready to write everything to the circular buffer:
     //if (gSensorBufferWritePermission==1)
     //{
@@ -142,7 +145,18 @@ void MotorControlInterruptHandler(void)
         if (toc >= 100) toc = 0;
     //}
 
-    
+    // toggle an available pin to support timing checks on scope:
+    if (tic == 0)
+    {
+        GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_0, GPIO_PIN_0); // HIGH
+        tic = 1;
+    }
+    else
+    {
+        GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_0, 0); // LOW
+        tic = 0;
+    }
+
 }
 
 
@@ -174,6 +188,13 @@ int main(void) {
     // Set up the serial console to use for displaying messages:
     InitConsole();
 
+    // Set up PB0 (unused by DRV8323RS) as a digial output, for visualizing ISR timing:
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); // enable the GPIO port used for DRV8323RS-nSCS
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOB)); // check if peripheral access enabled
+    GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, GPIO_PIN_0); // enable pin PA3
+    GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_0, 0); // initialize PB0 to LOW
+    UARTprintf("\t\t...PB0 initialized as a digital output.\n");
+
     // TODO: set up the interface to the DRV8323 motor driver
     bldc_setup();
     //gSensorBufferWritePermission = 0; // MotorControlInterruptHandler() not permitted to write to buffer
@@ -190,10 +211,11 @@ int main(void) {
     //*****************************************************************************************
 	while(1)
 	{
-        UARTprintf(".");
-        UARTprintf(".");
-        UARTprintf(".");
-        UARTprintf("\b\b\b");
+        //UARTprintf(".");
+        //UARTprintf(".");
+        //UARTprintf(".");
+        //UARTprintf("\b\b\b");
+
         //UARTgets(menu_buf,MENU_BUF_LEN); // wait until receive a command from client
         //buffer_reset();
         //switch (menu_buf[0])
