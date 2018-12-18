@@ -246,6 +246,33 @@ void init_isense_ADCs(void)
     UARTprintf("\t...DRV8323RS current sense ADCs initialized.\n");
 }
 
+// initialize phase enable (INLx) pins - pin definitions are in drv8323rs.h
+void init_phase_enable_pins(void)
+{
+    UARTprintf("\tInitializing DRV8323RS phase enable pins...\n");
+
+    SysCtlPeripheralEnable(INLA_PERIPH);
+    SysCtlPeripheralEnable(INLB_PERIPH);
+    SysCtlPeripheralEnable(INLC_PERIPH);
+
+    while(!SysCtlPeripheralReady(INLA_PERIPH)); // check if peripheral access enabled
+    GPIOPinTypeGPIOOutput(INLA_PORT, INLA_PIN); // enable pin INLA
+    GPIOPinWrite(INLA_PORT, INLA_PIN, 0); // initialize INLA to LOW
+    UARTprintf("\t\t...Phase enable A (INLA) initialized and disabled.\n");
+
+    while(!SysCtlPeripheralReady(INLB_PERIPH)); // check if peripheral access enabled
+    GPIOPinTypeGPIOOutput(INLB_PORT, INLB_PIN); // enable pin INLB
+    GPIOPinWrite(INLB_PORT, INLB_PIN, 0); // initialize INLA to LOW
+    UARTprintf("\t\t...Phase enable B (INLB) initialized and disabled.\n");
+
+    while(!SysCtlPeripheralReady(INLC_PERIPH)); // check if peripheral access enabled
+    GPIOPinTypeGPIOOutput(INLC_PORT, INLC_PIN); // enable pin INLC
+    GPIOPinWrite(INLC_PORT, INLC_PIN, 0); // initialize INLA to LOW
+    UARTprintf("\t\t...Phase enable C (INLC) initialized and disabled.\n");
+
+    UARTprintf("\t...DRV8323RS phase enable pins initialized.\n");
+}
+
 // initialize all 3 PWM modules
 void init_all_PWMs(void)
 {

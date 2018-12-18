@@ -5,6 +5,22 @@
 
 #define DRV8323RS_ENABLE_PIN    GPIO_PIN_4 // DRV8323RS ENABLE is PE4 on Tiva
 
+// Phase enable pin macros - assumes DRV8323RS is configured in 3x PWM mode
+// - INLA is on PF3
+#define INLA_PERIPH     SYSCTL_PERIPH_GPIOF
+#define INLA_PORT       GPIO_PORTA_BASE
+#define INLA_PIN        GPIO_PIN_3
+
+// - INLB is on PC4
+#define INLB_PERIPH     SYSCTL_PERIPH_GPIOC
+#define INLB_PORT       GPIO_PORTC_BASE
+#define INLB_PIN        GPIO_PIN_4
+
+// - INLC is on PC6
+#define INLC_PERIPH     SYSCTL_PERIPH_GPIOC
+#define INLC_PORT       GPIO_PORTC_BASE
+#define INLC_PIN        GPIO_PIN_6
+
 // Hall sensor macros
 #define HALLA_PERIPH    SYSCTL_PERIPH_GPIOB
 #define HALLA_PORT      GPIO_PORTB_BASE
@@ -61,7 +77,11 @@ void init_halls(void);
 // initialize 3 ADC pins to read DRV8323RS ISEN{A:C} (current sense for each phase)
 void init_isense_ADCs(void);
 
+// initialize phase enable (INLx) pins
+void init_phase_enable_pins(void);
+
 // initialize all 3 PWM modules:
+// - PWM output on pins PF2 (INHA), PB3 (INHB), and PC5 (INHC)
 void init_all_PWMs(void);
 
 // set PWM duty cycles:
