@@ -73,12 +73,6 @@ void bldc_setup(void)
 //typedef enum {PHASE_A = 0, PHASE_B = 1, PHASE_C = 2, PHASE_NONE = 3} phase;
 typedef enum {PHASE_A = 0, PHASE_B = 1, PHASE_C = 2, PHASE_NONE = 3} phase;
 
-// A 3-element array that maps 'phase' (above) to PWM_OUT_x
-uint32_t phase_to_PWMOut[3] = {PWM_OUT_0, PWM_OUT_1, PWM_OUT_2};
-
-// A 3-element array that maps 'enable' to GPIO pins
-//uint32_t enable_to_GPIO[3] = {,,};
-
 // Performs the actual commutation: one phase is PWMed, one is grounded, and the third floats.
 static void phases_set(int16_t pwm, phase p1, phase p2)
 {
@@ -123,15 +117,9 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
     //LATE = (LATE & ~0x7) | elow_bits[pfloat]; // TODO: convert from PIC32 to Tiva
 
     // Set the PWMs appropriately
-    // TODO: create & use an abstraction layer - drv8323rs.{c,h}
-    // so this function doesn't need to know which PWM modules
-    // are actually PWM modules and which are timer-based PWM.
-    //set_pulse_width(pfloat,0);
-    //set_pulse_width(plow,0);
-    //set_pulse_width(phigh,apwm);
-    PWMPulseWidthSet(PWM0_BASE,pfloat,0);   // floating pin has 0% duty cycle
-    PWMPulseWidthSet(PWM0_BASE,plow,0);     // low pin also has 0% duty cycle
-    PWMPulseWidthSet(PWM0_BASE,phigh,apwm); // the high phase gets the actual duty cycle
+    set_pulse_width(pfloat,0);      // floating phase has 0% duty cycle
+    set_pulse_width(plow,0);        // low phase also has 0% duty cycle
+    set_pulse_width(phigh,apwm);    // high phase gets the actual duty cycle
 }
 
 // Perform commutation, given the PWM percentage and the present Hall state
@@ -183,6 +171,34 @@ void bldc_commutate(int16_t pwm, uint8_t state)
 
 // Prompt the user for a signed PWM percentage
 int16_t bldc_get_pwm(void);
+
+// set a particular PWM module to a particular duty cycle:
+void set_pulse_width(uint8_t pwm_module, uint8_t duty_cycle)
+{
+    switch (pwm_module)
+    {
+        case 0: // phase A?
+        {
+            set_pwm1_dc(duty_cycle);
+            break;
+        }
+        case 1: // phase B?
+        {
+            set_timer_pwm_dc(duty_cycle);
+            break;
+        }
+        case 2: // phase C?
+        {
+            set_pwm0_dc(duty_cycle);
+            break;
+        }
+        default:
+        {
+            UARTprintf("Error: 0x%02X is an unknown pwm_module value.\n",pwm_module);
+            break;
+        }
+    }
+}
 
 // print the phase currents to the serial console:
 void print_phase_currents(void)
