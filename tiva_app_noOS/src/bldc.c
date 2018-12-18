@@ -83,6 +83,7 @@ static void set_enable_phases(uint8_t floating_phase)
             GPIOPinWrite(INLA_PORT, INLA_PIN, 0); // disable phase A
             GPIOPinWrite(INLB_PORT, INLB_PIN, INLB_PIN); // enable phase B
             GPIOPinWrite(INLC_PORT, INLC_PIN, INLC_PIN); // enable phase C
+            UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",0,1,1);
             break;
         }
         case 1: // phase B
@@ -91,6 +92,7 @@ static void set_enable_phases(uint8_t floating_phase)
             GPIOPinWrite(INLA_PORT, INLA_PIN, INLA_PIN);    // enable phase A
             GPIOPinWrite(INLB_PORT, INLB_PIN, 0);           // disable phase B
             GPIOPinWrite(INLC_PORT, INLC_PIN, INLC_PIN);    // enable phase C
+            UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",1,0,1);
             break;
         }
         case 2: // phase C
@@ -99,6 +101,7 @@ static void set_enable_phases(uint8_t floating_phase)
             GPIOPinWrite(INLA_PORT, INLA_PIN, INLA_PIN);    // enable phase A
             GPIOPinWrite(INLB_PORT, INLB_PIN, INLB_PIN);    // enable phase B
             GPIOPinWrite(INLC_PORT, INLC_PIN, 0);           // disable phase C
+            UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",1,1,0);
             break;
         }
         default: // received a bad 'floating_phase' input
@@ -182,9 +185,6 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
 // Perform commutation, given the PWM percentage and the present Hall state
 void bldc_commutate(int16_t pwm, uint8_t state)
 {
-    // convert pwm to ticks
-    pwm = ((int16_t)PWM_PERIOD*pwm )/100;
-
     UARTprintf("bldc_commutate: pwm = 0d%d, state = 0x%02X.\n",pwm,state);
 
     switch(state)
