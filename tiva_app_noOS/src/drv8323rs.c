@@ -371,6 +371,7 @@ void HallAIntHandler(void)
     HallState = read_halls();
 
     //UARTprintf("Interrupt on H[A].\n");
+    print_hall_state();
 
     // commutate:
 }
@@ -383,6 +384,7 @@ void HallBIntHandler(void)
     HallState = read_halls();
 
     //UARTprintf("Interrupt on H[B].\n");
+    print_hall_state();
 
     // commutate:
 }
@@ -395,6 +397,7 @@ void HallCIntHandler(void)
     HallState = read_halls();
 
     //UARTprintf("Interrupt on H[C].\n");
+    print_hall_state();
 
     // commutate:
 }

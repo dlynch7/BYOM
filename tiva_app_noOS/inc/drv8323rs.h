@@ -86,6 +86,9 @@ void read_ISEN_ABC(uint32_t *phase_curr_arr); // phase_curr_arr must be length 4
 // read all 3 Hall sensor states:
 uint8_t read_halls(void);
 
+// print Hall states:
+extern void print_hall_state();
+
 // Hall sensor input capture interrupt handlers:
 void HallAIntHandler(void);
 void HallBIntHandler(void);
