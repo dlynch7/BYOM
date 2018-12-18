@@ -41,11 +41,11 @@ static void IntDefaultHandler(void);
 // External declarations for the interrupt handlers used by the application.
 //
 //*****************************************************************************
-extern void MotorControlInterruptHandler(void);
-extern void HallAIntHandler(void);
-extern void HallBIntHandler(void);
-extern void HallCIntHandler(void);
-extern uint8_t HallState;
+extern void MotorControlInterruptHandler(void); // in main.c
+extern void HallAIntHandler(void);              // in bldc.{c,h}
+extern void HallBIntHandler(void);              // in bldc.{c,h}
+extern void HallCIntHandler(void);              // in bldc.{c,h}
+extern uint8_t HallState;                       // in bldc.{c,h}
 
 //*****************************************************************************
 //

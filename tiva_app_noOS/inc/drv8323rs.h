@@ -109,9 +109,9 @@ uint8_t read_halls(void);
 // print Hall states:
 extern void print_hall_state();
 
-// Hall sensor input capture interrupt handlers:
-void HallAIntHandler(void);
-void HallBIntHandler(void);
-void HallCIntHandler(void);
+// Hall sensor input capture interrupt handlers, defined in bldc.{c,h}:
+extern void HallAIntHandler(void);
+extern void HallBIntHandler(void);
+extern void HallCIntHandler(void);
 
 #endif

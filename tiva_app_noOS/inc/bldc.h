@@ -17,9 +17,6 @@ void bldc_setup(void);
 // Perform commutation, given the PWM percentage and the present Hall state:
 void bldc_commutate(int16_t pwm, uint8_t state);
 
-// set a particular PWM module to a particular duty cycle:
-//void set_pulse_width(uint8_t pwm_module, uint8_t duty_cycle);
-
 // Prompt the user for a signed PWM percentage:
 int16_t bldc_get_pwm(void);
 
@@ -28,5 +25,10 @@ void print_phase_currents(void);
 
 // print the hall state to the serial console:
 void print_hall_state(void);
+
+// Hall sensor input capture interrupt handlers:
+void HallAIntHandler(void);
+void HallBIntHandler(void);
+void HallCIntHandler(void);
 
 #endif

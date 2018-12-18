@@ -203,9 +203,9 @@ void init_halls(void)
     SysCtlPeripheralEnable(HALLB_PERIPH);
     SysCtlPeripheralEnable(HALLC_PERIPH);
 
-    GPIOIntRegister(HALLA_PORT, HallAIntHandler); // TODO: create HallAIntHandler() and add to vector table
-    GPIOIntRegister(HALLB_PORT, HallBIntHandler); // TODO: create HallBIntHandler() and add to vector table
-    GPIOIntRegister(HALLC_PORT, HallCIntHandler); // TODO: create HallCIntHandler() and add to vector table
+    GPIOIntRegister(HALLA_PORT, HallAIntHandler);
+    GPIOIntRegister(HALLB_PORT, HallBIntHandler);
+    GPIOIntRegister(HALLC_PORT, HallCIntHandler);
 
     GPIOPinTypeGPIOInput(HALLA_PORT, HALLA_PIN);
     GPIOPinTypeGPIOInput(HALLB_PORT, HALLB_PIN);
@@ -387,44 +387,4 @@ uint8_t read_halls(void)
     return ((uint8_t) (((GPIOPinRead(HALLC_PORT, HALLC_PIN) & HALLC_PIN) >> 2) \
                 | ((GPIOPinRead(HALLB_PORT, HALLB_PIN) & HALLB_PIN) << 1) \
                 | ((GPIOPinRead(HALLA_PORT, HALLA_PIN) & HALLA_PIN) >> 2)));
-}
-
-// Hall sensor input capture interrupt handlers:
-void HallAIntHandler(void)
-{
-    GPIOIntClear(HALLA_PORT, HALLA_PIN);    // clear interrupt flag
-
-    // update Hall states:
-    HallState = read_halls();
-
-    //UARTprintf("Interrupt on H[A].\n");
-    print_hall_state();
-
-    // commutate:
-}
-
-void HallBIntHandler(void)
-{
-    GPIOIntClear(HALLB_PORT, HALLB_PIN);    // clear interrupt flag
-
-    // update Hall states:
-    HallState = read_halls();
-
-    //UARTprintf("Interrupt on H[B].\n");
-    print_hall_state();
-
-    // commutate:
-}
-
-void HallCIntHandler(void)
-{
-    GPIOIntClear(HALLC_PORT, HALLC_PIN);    // clear interrupt flag
-
-    // update Hall states:
-    HallState = read_halls();
-
-    //UARTprintf("Interrupt on H[C].\n");
-    print_hall_state();
-
-    // commutate:
 }

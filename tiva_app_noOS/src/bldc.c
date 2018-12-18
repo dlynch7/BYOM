@@ -185,6 +185,8 @@ void bldc_commutate(int16_t pwm, uint8_t state)
     // convert pwm to ticks
     pwm = ((int16_t)PWM_PERIOD*pwm )/100;
 
+    UARTprintf("bldc_commutate: pwm = 0d%d, state = 0x%02X.\n",pwm,state);
+
     switch(state)
     {
         case 0x4: // 0x4, 0b100
@@ -246,4 +248,41 @@ void print_hall_state(void)
 
     UARTprintf("H[A]: %01X, H[B]: %01X, H[C]: %01X.\n",
         temp_hall & 0x01, (temp_hall & 0x02) >> 1, (temp_hall & 0x04) >> 2);
+}
+
+// Hall sensor input capture interrupt handlers:
+void HallAIntHandler(void)
+{
+    GPIOIntClear(HALLA_PORT, HALLA_PIN);    // clear interrupt flag
+
+    // update Hall states:
+    HallState = read_halls();
+    print_hall_state();
+
+    // commutate:
+    bldc_commutate(20,HallState);
+}
+
+void HallBIntHandler(void)
+{
+    GPIOIntClear(HALLB_PORT, HALLB_PIN);    // clear interrupt flag
+
+    // update Hall states:
+    HallState = read_halls();
+    print_hall_state();
+
+    // commutate:
+    bldc_commutate(20,HallState);
+}
+
+void HallCIntHandler(void)
+{
+    GPIOIntClear(HALLC_PORT, HALLC_PIN);    // clear interrupt flag
+
+    // update Hall states:
+    HallState = read_halls();
+    print_hall_state();
+
+    // commutate:
+    bldc_commutate(20,HallState);
 }
