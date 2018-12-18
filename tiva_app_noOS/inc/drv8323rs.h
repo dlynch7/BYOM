@@ -8,7 +8,7 @@
 // Phase enable pin macros - assumes DRV8323RS is configured in 3x PWM mode
 // - INLA is on PF3
 #define INLA_PERIPH     SYSCTL_PERIPH_GPIOF
-#define INLA_PORT       GPIO_PORTA_BASE
+#define INLA_PORT       GPIO_PORTF_BASE
 #define INLA_PIN        GPIO_PIN_3
 
 // - INLB is on PC4
