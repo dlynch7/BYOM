@@ -34,9 +34,6 @@ void bldc_setup(void)
 {
     UARTprintf("Beginning BLDC setup...\n");
 
-    // Set up 1 digital output pin to enable/disable the DRV8323RS and default to 0 (disabled)
-    init_drv8323rs_enable();
-
     // Set up 3 digital output pins as half-bridge enable pins
     // - these 3 pins go to the DRV8323RS INLx pins (PF3-->INLA, PC4-->INLB, PC6-->INLC)
     // - each pin enables one half-bridge of the DRV8323RS
@@ -50,11 +47,11 @@ void bldc_setup(void)
     // - PWM0 module, output 7 (PC5) --> INHC
     init_all_PWMs();
 
-    // set up digital input pins - input capture interrupts for Hall sensors
-    init_halls();
-
     // set up 3 analog inputs - current sense
     init_isense_ADCs();
+
+    // Set up 1 digital output pin to enable/disable the DRV8323RS and default to 1 (enabled)
+    init_drv8323rs_enable();
 
     // set up SPI module - required to configure DRV8323RS
     init_drv8323rs_SPI();
@@ -62,7 +59,10 @@ void bldc_setup(void)
     // Configure DRV8323RS in 3x PWM mode
     // - INHx pins receive PWM signals
     // - INLx pins function as 'enable' pins
-    // config_drv8323rs_pwm(PWM_3X_MODE);
+    config_drv8323rs_pwm(PWM_3X_MODE);
+
+    // set up digital input pins - input capture interrupts for Hall sensors
+    init_halls();
 
     UARTprintf("...BLDC setup is complete.\n");
 }
@@ -83,7 +83,7 @@ static void set_enable_phases(uint8_t floating_phase)
             GPIOPinWrite(INLA_PORT, INLA_PIN, 0); // disable phase A
             GPIOPinWrite(INLB_PORT, INLB_PIN, INLB_PIN); // enable phase B
             GPIOPinWrite(INLC_PORT, INLC_PIN, INLC_PIN); // enable phase C
-            UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",0,1,1);
+            //UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",0,1,1);
             break;
         }
         case 1: // phase B
@@ -92,7 +92,7 @@ static void set_enable_phases(uint8_t floating_phase)
             GPIOPinWrite(INLA_PORT, INLA_PIN, INLA_PIN);    // enable phase A
             GPIOPinWrite(INLB_PORT, INLB_PIN, 0);           // disable phase B
             GPIOPinWrite(INLC_PORT, INLC_PIN, INLC_PIN);    // enable phase C
-            UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",1,0,1);
+            //UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",1,0,1);
             break;
         }
         case 2: // phase C
@@ -101,7 +101,7 @@ static void set_enable_phases(uint8_t floating_phase)
             GPIOPinWrite(INLA_PORT, INLA_PIN, INLA_PIN);    // enable phase A
             GPIOPinWrite(INLB_PORT, INLB_PIN, INLB_PIN);    // enable phase B
             GPIOPinWrite(INLC_PORT, INLC_PIN, 0);           // disable phase C
-            UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",1,1,0);
+            //UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",1,1,0);
             break;
         }
         default: // received a bad 'floating_phase' input
@@ -185,7 +185,7 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
 // Perform commutation, given the PWM percentage and the present Hall state
 void bldc_commutate(int16_t pwm, uint8_t state)
 {
-    UARTprintf("bldc_commutate: pwm = 0d%d, state = 0x%02X.\n",pwm,state);
+    //UARTprintf("bldc_commutate: pwm = 0d%d, state = 0x%02X.\n",pwm,state);
 
     switch(state)
     {
@@ -257,10 +257,10 @@ void HallAIntHandler(void)
 
     // update Hall states:
     HallState = read_halls();
-    print_hall_state();
+    //print_hall_state();
 
     // commutate:
-    bldc_commutate(20,HallState);
+    bldc_commutate(10,HallState);
 }
 
 void HallBIntHandler(void)
@@ -269,10 +269,10 @@ void HallBIntHandler(void)
 
     // update Hall states:
     HallState = read_halls();
-    print_hall_state();
+    //print_hall_state();
 
     // commutate:
-    bldc_commutate(20,HallState);
+    bldc_commutate(10,HallState);
 }
 
 void HallCIntHandler(void)
@@ -281,8 +281,8 @@ void HallCIntHandler(void)
 
     // update Hall states:
     HallState = read_halls();
-    print_hall_state();
+    //print_hall_state();
 
     // commutate:
-    bldc_commutate(20,HallState);
+    bldc_commutate(10,HallState);
 }
