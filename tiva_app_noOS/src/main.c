@@ -125,8 +125,8 @@ void MotorControlInterruptHandler(void)
     // clear the timer interrupt:
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
-    print_phase_currents();
-    print_hall_state();
+    //print_phase_currents();
+    //print_hall_state();
 
     // If the permission flag is set, get ready to write everything to the circular buffer:
     //if (gSensorBufferWritePermission==1)
