@@ -41,14 +41,13 @@ void bldc_setup(void)
     // - these 3 pins go to the DRV8323RS INLx pins (PF3-->INLA, PC4-->INLB, PC6-->INLC)
     // - each pin enables one half-bridge of the DRV8323RS
     // - default to 0 (disabled)
-    // TODO: abstraction layer
+    init_phase_enable_pins();
 
     // Set up 3 PWM modules
     // - each output pin corresponds to INHx pins on DRV8323 (PF2-->INHA,PB3-->INHB,PC5-->INHC)
     // - PWM1 module, output 6 (PF2) --> INHA
     // - Timer 3 CCP 1 (PB3) --> INHB (we must use a general purpose timer as a third PWM module)
     // - PWM0 module, output 7 (PC5) --> INHC
-    // TODO: abstraction layer
     init_all_PWMs();
 
     // set up digital input pins - input capture interrupts for Hall sensors
@@ -73,6 +72,71 @@ void bldc_setup(void)
 //typedef enum {PHASE_A = 0, PHASE_B = 1, PHASE_C = 2, PHASE_NONE = 3} phase;
 typedef enum {PHASE_A = 0, PHASE_B = 1, PHASE_C = 2, PHASE_NONE = 3} phase;
 
+// set/clear the DRV8323RS phase EN pins - in 3x PWM mode, these are INL{A:C}
+static void set_enable_phases(uint8_t floating_phase)
+{
+    switch(floating_phase)
+    {
+        case 0: // phase A
+        {
+            // disable phase A, enable phase B, and enable phase C
+            GPIOPinWrite(INLA_PORT, INLA_PIN, 0); // disable phase A
+            GPIOPinWrite(INLB_PORT, INLB_PIN, INLB_PIN); // enable phase B
+            GPIOPinWrite(INLC_PORT, INLC_PIN, INLC_PIN); // enable phase C
+            break;
+        }
+        case 1: // phase B
+        {
+            // enable phase A, disable phase B, and enable phase C
+            GPIOPinWrite(INLA_PORT, INLA_PIN, INLA_PIN);    // enable phase A
+            GPIOPinWrite(INLB_PORT, INLB_PIN, 0);           // disable phase B
+            GPIOPinWrite(INLC_PORT, INLC_PIN, INLC_PIN);    // enable phase C
+            break;
+        }
+        case 2: // phase C
+        {
+            // enable phase A, enable phase B, and disable phase C
+            GPIOPinWrite(INLA_PORT, INLA_PIN, INLA_PIN);    // enable phase A
+            GPIOPinWrite(INLB_PORT, INLB_PIN, INLB_PIN);    // enable phase B
+            GPIOPinWrite(INLC_PORT, INLC_PIN, 0);           // disable phase C
+            break;
+        }
+        default: // received a bad 'floating_phase' input
+        {
+            UARTprintf("Error: 0x%02X is an unknown floating_phase.\n",floating_phase);
+            break;
+        }
+    }
+}
+
+// set a particular PWM module to a particular duty cycle:
+static void set_pulse_width(uint8_t pwm_module, uint8_t duty_cycle)
+{
+    switch (pwm_module)
+    {
+        case 0: // phase A?
+        {
+            set_pwm1_dc(duty_cycle);
+            break;
+        }
+        case 1: // phase B?
+        {
+            set_timer_pwm_dc(duty_cycle);
+            break;
+        }
+        case 2: // phase C?
+        {
+            set_pwm0_dc(duty_cycle);
+            break;
+        }
+        default:
+        {
+            UARTprintf("Error: 0x%02X is an unknown pwm_module value.\n",pwm_module);
+            break;
+        }
+    }
+}
+
 // Performs the actual commutation: one phase is PWMed, one is grounded, and the third floats.
 static void phases_set(int16_t pwm, phase p1, phase p2)
 {
@@ -86,12 +150,6 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
     static phase floating[3][3] =   {{PHASE_NONE,   PHASE_C,    PHASE_B},
                                      {PHASE_C,      PHASE_NONE, PHASE_A},
                                      {PHASE_B,      PHASE_A,    PHASE_NONE}};
-
-    // elow_bits[pfloat] takes the floating phase 'pfloat' (e.g., pfloat could be PHASE_A)
-    // and returns a 3-bit value with a zero in the column corresponding to the
-    // floating phase (0th column = A, 1st column = B, 2nd column = C).
-    // 0b110 = 0x6, 0b101 = 0x5, 0b011 = 0x3
-    static uint8_t elow_bits[3] = {0x6, 0x5, 0x3};
 
     phase pfloat = floating[p1][p2];    // the floating phase
     phase phigh, plow;                  // phigh is the PWMed phase, plow is the grounded phase
@@ -112,9 +170,8 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
     }
 
     // Set/clear the three ENABLE pins (INLx) according to elow_bits[pfloat]
-    // TODO: create & use an abstraction layer so this function can use bitwise operations
-    // to set/clear the INLx pins - drv8323rs.{c,h}
-    //LATE = (LATE & ~0x7) | elow_bits[pfloat]; // TODO: convert from PIC32 to Tiva
+    // - uses an abstraction layer defined in drv8323rs.{c,h}
+    set_enable_phases(pfloat); // definined in bldc.{c,h}
 
     // Set the PWMs appropriately
     set_pulse_width(pfloat,0);      // floating phase has 0% duty cycle
@@ -172,33 +229,6 @@ void bldc_commutate(int16_t pwm, uint8_t state)
 // Prompt the user for a signed PWM percentage
 int16_t bldc_get_pwm(void);
 
-// set a particular PWM module to a particular duty cycle:
-void set_pulse_width(uint8_t pwm_module, uint8_t duty_cycle)
-{
-    switch (pwm_module)
-    {
-        case 0: // phase A?
-        {
-            set_pwm1_dc(duty_cycle);
-            break;
-        }
-        case 1: // phase B?
-        {
-            set_timer_pwm_dc(duty_cycle);
-            break;
-        }
-        case 2: // phase C?
-        {
-            set_pwm0_dc(duty_cycle);
-            break;
-        }
-        default:
-        {
-            UARTprintf("Error: 0x%02X is an unknown pwm_module value.\n",pwm_module);
-            break;
-        }
-    }
-}
 
 // print the phase currents to the serial console:
 void print_phase_currents(void)

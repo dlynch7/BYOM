@@ -18,7 +18,7 @@ void bldc_setup(void);
 void bldc_commutate(int16_t pwm, uint8_t state);
 
 // set a particular PWM module to a particular duty cycle:
-void set_pulse_width(uint8_t pwm_module, uint8_t duty_cycle);
+//void set_pulse_width(uint8_t pwm_module, uint8_t duty_cycle);
 
 // Prompt the user for a signed PWM percentage:
 int16_t bldc_get_pwm(void);
