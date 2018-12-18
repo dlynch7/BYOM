@@ -56,7 +56,7 @@ static void init_timer_pwm(void) // based on tivaware/examples/peripherals/timer
     TimerLoadSet(TIMER3_BASE, TIMER_B, PWM_PERIOD-1); // don't forget to -1 in the 'load' register!
 
     // Set the Timer3B match value to load value / 3.
-    TimerMatchSet(TIMER3_BASE, TIMER_B, TimerLoadGet(TIMER3_BASE, TIMER_B) / 3);
+    TimerMatchSet(TIMER3_BASE, TIMER_B, TimerLoadGet(TIMER3_BASE, TIMER_B));
 
     // Enable Timer3B
     TimerEnable(TIMER3_BASE, TIMER_B);
@@ -88,8 +88,8 @@ static void init_PWM0(void)
     // Set the period (expressed in clock ticks).
     PWMGenPeriodSet(PWM0_BASE, PWM_GEN_3, PWM_PERIOD); // PWM_PERIOD is #defined in drv8323rs.h
 
-    // Set the PWM duty cycle to 33%.
-    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, (PWM_PERIOD/3));
+    // Set the PWM duty cycle to 0.
+    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, 0);
 
     // Enable the PWM generator.
     PWMGenEnable(PWM0_BASE, PWM_GEN_3);
@@ -125,7 +125,7 @@ static void init_PWM1(void)
     PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, PWM_PERIOD); // PWM_PERIOD is #defined in drv8323rs.h
 
     // Set the PWM duty cycle to 33%.
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, (PWM_PERIOD/3));
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, 0);
 
     // Enable the PWM generator.
     PWMGenEnable(PWM1_BASE, PWM_GEN_3);
@@ -262,12 +262,12 @@ void init_phase_enable_pins(void)
 
     while(!SysCtlPeripheralReady(INLB_PERIPH)); // check if peripheral access enabled
     GPIOPinTypeGPIOOutput(INLB_PORT, INLB_PIN); // enable pin INLB
-    GPIOPinWrite(INLB_PORT, INLB_PIN, 0); // initialize INLA to LOW
+    GPIOPinWrite(INLB_PORT, INLB_PIN, 0); // initialize INLB to LOW
     UARTprintf("\t\t...Phase enable B (INLB) initialized and disabled.\n");
 
     while(!SysCtlPeripheralReady(INLC_PERIPH)); // check if peripheral access enabled
     GPIOPinTypeGPIOOutput(INLC_PORT, INLC_PIN); // enable pin INLC
-    GPIOPinWrite(INLC_PORT, INLC_PIN, 0); // initialize INLA to LOW
+    GPIOPinWrite(INLC_PORT, INLC_PIN, INLC_PIN); // initialize INLC to LOW
     UARTprintf("\t\t...Phase enable C (INLC) initialized and disabled.\n");
 
     UARTprintf("\t...DRV8323RS phase enable pins initialized.\n");
@@ -282,9 +282,9 @@ void init_all_PWMs(void)
     init_PWM0();
     init_PWM1();
 
-    set_timer_pwm_dc(20);
-    set_pwm0_dc(20);
-    set_pwm1_dc(20);
+    set_timer_pwm_dc(1);
+    set_pwm0_dc(1);
+    set_pwm1_dc(1);
     UARTprintf("\t...All PWM modules have been initialized.\n");
 }
 
@@ -293,21 +293,30 @@ void set_timer_pwm_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
 {
     uint32_t load = TimerLoadGet(TIMER3_BASE, TIMER_B);
     uint32_t match = ((uint32_t) load - (load*duty_cycle_pc)/100);
+    if (match >= load) match = load - 1;
     TimerMatchSet(TIMER3_BASE, TIMER_B, match);
+    UARTprintf("\tTimer PWM, load = %d, match = %d.\n",
+        TimerLoadGet(TIMER3_BASE, TIMER_B),TimerMatchGet(TIMER3_BASE, TIMER_B));
 }
 
 // update duty cycle of the timer-generated PWM module:
 void set_pwm0_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
 {
     uint32_t width = ((uint32_t) (PWM_PERIOD*duty_cycle_pc)/100);
+    if(width < 1) width = 1;
     PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, width);
+    UARTprintf("\tPWM0, period = %d, width = %d.\n", PWM_PERIOD,
+        PWMPulseWidthGet(PWM0_BASE, PWM_OUT_7));
 }
 
 // update duty cycle of the timer-generated PWM module:
 void set_pwm1_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
 {
     uint32_t width = ((uint32_t) (PWM_PERIOD*duty_cycle_pc)/100);
+    if(width < 1) width = 1;
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, width);
+    UARTprintf("\tPWM1, period = %d, width = %d.\n", PWM_PERIOD,
+        PWMPulseWidthGet(PWM1_BASE, PWM_OUT_6));
 }
 
 // SPI write to DRV8323RS:
