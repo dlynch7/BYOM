@@ -151,7 +151,7 @@ void init_drv8323rs_enable(void)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE); // enable the GPIO port used for DRV8323RS-enable
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOE)); // check if peripheral access enabled
     GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, DRV8323RS_ENABLE_PIN); // enable pin PE4
-    GPIOPinWrite(GPIO_PORTE_BASE, DRV8323RS_ENABLE_PIN, 0); // initialize PE4 to LOW
+    GPIOPinWrite(GPIO_PORTE_BASE, DRV8323RS_ENABLE_PIN, DRV8323RS_ENABLE_PIN); // initialize PE4 to HIGH
 
     // Display startup notification on serial console
     UARTprintf("\t...DRV8323RS Enable pin initialized.\n");
@@ -231,9 +231,11 @@ void init_isense_ADCs(void)
 {
     UARTprintf("\tInitializing DRV8323RS current sense ADCs...\n");
     SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0)) {;} // wait until ADC0 module is ready
+
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);    // need PE1/AIN2 (ISENB) and PE2/AIN1 (ISENA)
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);    // need PD3/AIN4 (ISENC)
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0)) {;} // wait until ADC0 module is ready
+
     GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_1);    // PE1/AIN2 (ISENB)
     GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_2);    // PE2/AIN1 (ISENA)
     GPIOPinTypeADC(GPIO_PORTD_BASE, GPIO_PIN_3);    // PD3/AIN4 (ISENC)

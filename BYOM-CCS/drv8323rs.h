@@ -50,6 +50,9 @@
 // Driver Control Fields (Driver Control Register has address = 0x02)
 #define DRIVER_CONTROL_REG      0x02
 
+// Overcurrent Protection Control register
+#define OCP_CONTROL_REG      0x05
+
 //#define CLR_FLT                 0x01
 //#define BRAKE                   0x02
 //#define COAST                   0x04

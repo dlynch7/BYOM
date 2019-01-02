@@ -48,7 +48,8 @@ void bldc_setup(void)
     init_all_PWMs();
 
     // set up 3 analog inputs - current sense
-    init_isense_ADCs();
+    // TODO: Currently hanging on waiting for ADC0 to come online
+    //init_isense_ADCs();
 
     // Set up 1 digital output pin to enable/disable the DRV8323RS and default to 1 (enabled)
     init_drv8323rs_enable();
@@ -59,7 +60,12 @@ void bldc_setup(void)
     // Configure DRV8323RS in 3x PWM mode
     // - INHx pins receive PWM signals
     // - INLx pins function as 'enable' pins
-    config_drv8323rs_pwm(PWM_3X_MODE);
+    //config_drv8323rs_pwm(PWM_3X_MODE);
+
+    drv8323rs_spi_write(DRIVER_CONTROL_REG, 0b01100100000);
+
+    // Turn off OCP
+    drv8323rs_spi_write(OCP_CONTROL_REG, 0b00111111111);
 
     // set up digital input pins - input capture interrupts for Hall sensors
     init_halls();
@@ -260,7 +266,7 @@ void HallAIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(10,HallState);
+    bldc_commutate(99,HallState);
 }
 
 void HallBIntHandler(void)
@@ -272,7 +278,7 @@ void HallBIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(10,HallState);
+    bldc_commutate(99,HallState);
 }
 
 void HallCIntHandler(void)
@@ -284,5 +290,5 @@ void HallCIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(10,HallState);
+    bldc_commutate(99,HallState);
 }
