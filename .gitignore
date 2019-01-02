@@ -27,3 +27,5 @@ build/
 /.metadata/
 /.jxbrowser-data/
 RemoteSystemsTempFiles
+/BYOM-CCS/.launches/
+/BYOM-CCS/Debug/
