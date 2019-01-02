@@ -21,3 +21,9 @@ build/
 *.asv
 *.fig
 *.mat
+/.metadata/
+
+# CCS files:
+/.metadata/
+/.jxbrowser-data/
+RemoteSystemsTempFiles
