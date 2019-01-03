@@ -179,7 +179,9 @@ void init_drv8323rs_SPI(void)
     // Set up SSI2 in master Freescale (SPI) mode.
     // - we do not want to use SSI2Fss, we want to use our manual nSCS on PA3 instead.
     SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_SSI2)); // check if peripheral access enabled
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); // use SSI2 on PB[7:4]
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOB)); // check if peripheral access enabled
     GPIOPinConfigure(GPIO_PB4_SSI2CLK); // SCLK
     GPIOPinConfigure(GPIO_PB6_SSI2RX);  // MISO/SDO
     GPIOPinConfigure(GPIO_PB7_SSI2TX);  // MOSI/SDI
@@ -297,8 +299,8 @@ void set_timer_pwm_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
     uint32_t match = ((uint32_t) load - (load*duty_cycle_pc)/100);
     if (match >= load) match = load - 1;
     TimerMatchSet(TIMER3_BASE, TIMER_B, match);
-    UARTprintf("\tTimer PWM, load = %d, match = %d.\n",
-        TimerLoadGet(TIMER3_BASE, TIMER_B),TimerMatchGet(TIMER3_BASE, TIMER_B));
+    //UARTprintf("\tTimer PWM, load = %d, match = %d.\n",
+    //    TimerLoadGet(TIMER3_BASE, TIMER_B),TimerMatchGet(TIMER3_BASE, TIMER_B));
 }
 
 // update duty cycle of the timer-generated PWM module:
@@ -307,8 +309,8 @@ void set_pwm0_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
     uint32_t width = ((uint32_t) (PWM_PERIOD*duty_cycle_pc)/100);
     if(width < 1) width = 1;
     PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, width);
-    UARTprintf("\tPWM0, period = %d, width = %d.\n", PWM_PERIOD,
-        PWMPulseWidthGet(PWM0_BASE, PWM_OUT_7));
+    //UARTprintf("\tPWM0, period = %d, width = %d.\n", PWM_PERIOD,
+    //    PWMPulseWidthGet(PWM0_BASE, PWM_OUT_7));
 }
 
 // update duty cycle of the timer-generated PWM module:
@@ -317,8 +319,8 @@ void set_pwm1_dc(uint8_t duty_cycle_pc) // 0 <= duty_cycle_pc <= 100
     uint32_t width = ((uint32_t) (PWM_PERIOD*duty_cycle_pc)/100);
     if(width < 1) width = 1;
     PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, width);
-    UARTprintf("\tPWM1, period = %d, width = %d.\n", PWM_PERIOD,
-        PWMPulseWidthGet(PWM1_BASE, PWM_OUT_6));
+    //UARTprintf("\tPWM1, period = %d, width = %d.\n", PWM_PERIOD,
+    //    PWMPulseWidthGet(PWM1_BASE, PWM_OUT_6));
 }
 
 // SPI write to DRV8323RS:
@@ -327,7 +329,7 @@ void drv8323rs_spi_write(uint8_t address, uint16_t data)
     uint32_t ui32RxData = 0; // initialization
     uint32_t *pui32RxData = &ui32RxData;
 
-    uint32_t ui32TxData = (((1 << 15) | (address << 11)) | (data & 0x7FF));
+    uint32_t ui32TxData = (((0 << 15) | (address << 11)) | (data & 0x7FF));
     GPIOPinWrite(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN, 0);   // pull CS LOW
     SysCtlDelay(50);                                        // delay before sending data
     SSIDataPut(SSI2_BASE, ui32TxData);                      // send data
@@ -347,7 +349,7 @@ uint16_t drv8323rs_spi_read(uint8_t address)
     uint32_t ui32RxData = 0; // initialization
     uint32_t *pui32RxData = &ui32RxData;
 
-    uint32_t ui32TxData = (((0 << 15) | (address << 11)));
+    uint32_t ui32TxData = (((1 << 15) | (address << 11)));
     GPIOPinWrite(GPIO_PORTA_BASE, DRV8323RS_NSCS_PIN, 0);   // pull CS LOW
     SysCtlDelay(50);                                        // delay before sending data
     SSIDataPut(SSI2_BASE, ui32TxData);                      // send data

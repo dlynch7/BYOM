@@ -178,6 +178,8 @@ int main(void) {
     //
     //*****************************************************************************************
 
+
+
     // Allow interrupt handlers to use floating-point instructions,
     // at the expense of extra stack usage:
     FPULazyStackingEnable();
@@ -191,9 +193,10 @@ int main(void) {
     // Set up PB0 (unused by DRV8323RS) as a digial output, for visualizing ISR timing:
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); // enable the GPIO port used for DRV8323RS-nSCS
     while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOB)); // check if peripheral access enabled
-    GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, GPIO_PIN_0); // enable pin PA3
+    GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, GPIO_PIN_0); // enable pin PB0
     GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_0, 0); // initialize PB0 to LOW
     UARTprintf("\t\t...PB0 initialized as a digital output.\n");
+
 
     // TODO: set up the interface to the DRV8323 motor driver
     bldc_setup();

@@ -62,10 +62,12 @@ void bldc_setup(void)
     // - INLx pins function as 'enable' pins
     //config_drv8323rs_pwm(PWM_3X_MODE);
 
-    drv8323rs_spi_write(DRIVER_CONTROL_REG, 0b01100100000);
+    drv8323rs_spi_write(DRIVER_CONTROL_REG, 0x320);
+
+    UARTprintf("\t%x", drv8323rs_spi_read(DRIVER_CONTROL_REG));
 
     // Turn off OCP
-    drv8323rs_spi_write(OCP_CONTROL_REG, 0b00111111111);
+    //drv8323rs_spi_write(OCP_CONTROL_REG, 0b00111111111);
 
     // set up digital input pins - input capture interrupts for Hall sensors
     init_halls();
@@ -266,7 +268,7 @@ void HallAIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(99,HallState);
+    bldc_commutate(-98,HallState);
 }
 
 void HallBIntHandler(void)
@@ -278,7 +280,7 @@ void HallBIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(99,HallState);
+    bldc_commutate(-88,HallState);
 }
 
 void HallCIntHandler(void)
@@ -290,5 +292,5 @@ void HallCIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(99,HallState);
+    bldc_commutate(-98,HallState);
 }

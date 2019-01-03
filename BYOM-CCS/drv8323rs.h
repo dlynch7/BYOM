@@ -44,7 +44,7 @@
 
 // SPI-related macros
 #define DRV8323RS_NSCS_PIN      GPIO_PIN_3  // nSCS is PA3 on Tiva
-#define DRV8323RS_SPI_CLK_FREQ  1000000     // 1 MHz (max 10 MHz)
+#define DRV8323RS_SPI_CLK_FREQ  100000     // 1 MHz (max 10 MHz)
 #define DRV8323RS_SPI_WORD_LEN  16          // words are 16 bits long
 
 // Driver Control Fields (Driver Control Register has address = 0x02)
