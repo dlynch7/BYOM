@@ -26,6 +26,9 @@ void print_phase_currents(void);
 // print the hall state to the serial console:
 void print_hall_state(void);
 
+// start the motor
+void start_motor(void);
+
 // Hall sensor input capture interrupt handlers:
 void HallAIntHandler(void);
 void HallBIntHandler(void);
