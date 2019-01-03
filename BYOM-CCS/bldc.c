@@ -49,7 +49,7 @@ void bldc_setup(void)
 
     // set up 3 analog inputs - current sense
     // TODO: Currently hanging on waiting for ADC0 to come online
-    init_isense_ADCs();
+    //init_isense_ADCs();
 
     // Set up 1 digital output pin to enable/disable the DRV8323RS and default to 1 (enabled)
     init_drv8323rs_enable();
@@ -62,7 +62,7 @@ void bldc_setup(void)
     // - INLx pins function as 'enable' pins
     //config_drv8323rs_pwm(PWM_3X_MODE);
 
-    drv8323rs_spi_write(DRIVER_CONTROL_REG, 0x020);
+    drv8323rs_spi_write(DRIVER_CONTROL_REG, 0x320);
 
     UARTprintf("\t%x", drv8323rs_spi_read(DRIVER_CONTROL_REG));
 
@@ -71,8 +71,6 @@ void bldc_setup(void)
 
     // set up digital input pins - input capture interrupts for Hall sensors
     init_halls();
-
-    start_motor();
 
     UARTprintf("...BLDC setup is complete.\n");
 }
@@ -260,13 +258,6 @@ void print_hall_state(void)
         temp_hall & 0x01, (temp_hall & 0x02) >> 1, (temp_hall & 0x04) >> 2);
 }
 
-// Force one commutation update to start the motor spinning
-void start_motor(void)
-{
-    HallState = read_halls();
-    bldc_commutate(15,HallState);
-}
-
 // Hall sensor input capture interrupt handlers:
 void HallAIntHandler(void)
 {
@@ -277,7 +268,7 @@ void HallAIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(5,HallState);
+    bldc_commutate(-98,HallState);
 }
 
 void HallBIntHandler(void)
@@ -289,7 +280,7 @@ void HallBIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(5,HallState);
+    bldc_commutate(-88,HallState);
 }
 
 void HallCIntHandler(void)
@@ -301,5 +292,5 @@ void HallCIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(5,HallState);
+    bldc_commutate(-98,HallState);
 }
