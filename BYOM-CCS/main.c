@@ -207,6 +207,13 @@ int main(void) {
 
     UARTprintf("Setup complete!\n");
 
+    // Give the motor its first update
+    HallState = read_halls();
+    //print_hall_state();
+
+    // commutate:
+    bldc_commutate(-50,HallState);
+
     //*****************************************************************************************
     //
     // Superloop:

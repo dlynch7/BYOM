@@ -268,7 +268,7 @@ void HallAIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(-98,HallState);
+    bldc_commutate(-50,HallState);
 }
 
 void HallBIntHandler(void)
@@ -280,7 +280,7 @@ void HallBIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(-88,HallState);
+    bldc_commutate(-50,HallState);
 }
 
 void HallCIntHandler(void)
@@ -292,5 +292,5 @@ void HallCIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(-98,HallState);
+    bldc_commutate(-50,HallState);
 }
