@@ -49,7 +49,7 @@ void bldc_setup(void)
 
     // set up 3 analog inputs - current sense
     // TODO: Currently hanging on waiting for ADC0 to come online
-    //init_isense_ADCs();
+    init_isense_ADCs();
 
     // Set up 1 digital output pin to enable/disable the DRV8323RS and default to 1 (enabled)
     init_drv8323rs_enable();
@@ -75,10 +75,6 @@ void bldc_setup(void)
     UARTprintf("...BLDC setup is complete.\n");
 }
 
-// A convenient new type to use the mnemonic names PHASE_A, PHASE_B, PHASE_C, PHASE_NONE
-// - PHASE_NONE is not needed, but there for potential error handling.
-//typedef enum {PHASE_A = 0, PHASE_B = 1, PHASE_C = 2, PHASE_NONE = 3} phase;
-typedef enum {PHASE_A = 0, PHASE_B = 1, PHASE_C = 2, PHASE_NONE = 3} phase;
 
 // set/clear the DRV8323RS phase EN pins - in 3x PWM mode, these are INL{A:C}
 static void set_enable_phases(uint8_t floating_phase)
@@ -180,6 +176,9 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
         apwm = -pwm;
     }
 
+    // Record the PWM'd phase for current demuxing
+    HighPhase = phigh;
+
     // Set/clear the three ENABLE pins (INLx) according to elow_bits[pfloat]
     // - uses an abstraction layer defined in drv8323rs.{c,h}
     set_enable_phases(pfloat); // definined in bldc.{c,h}
@@ -246,8 +245,29 @@ void print_phase_currents(void)
     uint32_t phase_curr_arr[4] = {0};
     read_ISEN_ABC(phase_curr_arr);
     UARTprintf("[ADC] A: %d, B: %d, C: %d.\n",
-        phase_curr_arr[0],phase_curr_arr[1],phase_curr_arr[2]);
+        phase_curr_arr[2],phase_curr_arr[1],phase_curr_arr[0]);
 }
+
+
+
+// Gets the current from the phase that is being PWM'd
+uint16_t get_current(void)
+{
+    uint32_t phase_curr_arr[4] = {0};
+    read_ISEN_ABC(phase_curr_arr);
+
+    switch(HighPhase) {
+        case PHASE_A:
+            return phase_curr_arr[2] & 0x0FFF;
+        case PHASE_B:
+            return phase_curr_arr[1] & 0x0FFF;
+        case PHASE_C:
+            return phase_curr_arr[0] & 0x0FFF;
+        default:
+            return 0;
+    }
+}
+
 
 // print the hall state to the serial console:
 void print_hall_state(void)
@@ -268,7 +288,7 @@ void HallAIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(-50,HallState);
+    bldc_commutate(-10,HallState);
 }
 
 void HallBIntHandler(void)
@@ -280,7 +300,7 @@ void HallBIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(-50,HallState);
+    bldc_commutate(-10,HallState);
 }
 
 void HallCIntHandler(void)
@@ -292,5 +312,5 @@ void HallCIntHandler(void)
     //print_hall_state();
 
     // commutate:
-    bldc_commutate(-50,HallState);
+    bldc_commutate(-10,HallState);
 }
