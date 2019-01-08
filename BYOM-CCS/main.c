@@ -69,9 +69,9 @@
 #include "setup.h"
 
 // Macros
-#define MOTOR_CONTROL_FREQ 10000 // frequency of timer A0 interrupt (in Hz)
+#define MOTOR_CONTROL_FREQ 5000 // frequency of timer A0 interrupt (in Hz)
 #define MENU_BUF_LEN 2 // length of serial I/O buffer for receiving stuff from client PC program
-#define NUM_SAMPLES 10000
+#define NUM_SAMPLES 15000
 
 // Global variables
 uint8_t gSensorBufferWritePermission; // permits SensorPollHandler() to write to circ buffer
