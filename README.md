@@ -77,9 +77,3 @@ I am reproducing it below and adding a column for the Tiva devboard pins.
 
 </p>
 </details>
-
-## Firmware
-
-There are two versions of this project, both using the Tiva microcontroller:
-- [tiva_app_noOS](tiva_app_noOS/) - a bare-metal application
-- [tiva_app_FreeRTOS](tiva_app_FreeRTOS/) - a demonstration of how a real-time operating system (RTOS) can be useful for motor control applications that also require some kind of user interface.
