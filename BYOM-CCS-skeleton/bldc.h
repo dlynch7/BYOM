@@ -28,7 +28,7 @@ void print_phase_currents(void);
 // print the hall state to the serial console:
 void print_hall_state(void);
 
-// Get's the current on the actively PWM'd phase
+// Gets the current on the actively PWM'd phase
 uint16_t get_current(void);
 
 // Hall sensor input capture interrupt handlers:

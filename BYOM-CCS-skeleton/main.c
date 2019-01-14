@@ -144,13 +144,7 @@ int main(void) {
     // Set up the serial console to use for displaying messages:
     InitConsole();
 
-    // Set up PB0 (unused by DRV8323RS) as a digial output, for visualizing ISR timing:
-    // (but put it in a separate function)
-    // - enable GPIO port B
-    // - check if peripheral access enabled
-    // - enable pin PB0
-    // - initialize PB0 to LOW
-    UARTprintf("\t\t...PB0 initialized as a digital output.\n");
+    // Call the setup function that initializes an unused pin to visualize ISR timing.
 
 
     // Set up the BLDC motor
