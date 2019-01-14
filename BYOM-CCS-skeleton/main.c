@@ -61,6 +61,7 @@ volatile uint16_t logCount; // the number of samples logged
 //*************************************************************************************************
 //
 // This function sets up UART0 to be used for a console to display info as the programs runs.
+// It requires Tivaware's uartstdio.{c,h} utility.
 //
 //************************************************************************************************/
 void InitConsole(void)
@@ -83,21 +84,15 @@ void InitConsole(void)
 //********************************************************************************************
 void MotorControlInterruptHandler(void)
 {
-    // clear the timer interrupt:
-    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    // 1) clear the timer interrupt
 
-    // if the logging array is not full, log another sample
-    // and increment the number of samples logged.
+    // 2) if the logging array is not full, log another sample
+    // and increment the number of samples logged;
+    // If array is full, set doneLogging to 1 to notify main loop.
     // What goes into the array?
-    // get_current() returns an
-    if(logCount < NUM_SAMPLES) {
-
-        logData[logCount] = get_current() + (HallState << 12);
-
-        // Increment the log entry counter
-        logCount++;
-    } else
-        doneLogging = 1;
+    // - get_current() returns a uint16_t but the most significant nibble is empty
+    // - use the most significant nibble to store the HallState
+    // - Implement this combination of current & HallState by adding and bitshifting.
 
 }
 
