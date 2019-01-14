@@ -32,31 +32,32 @@
 //   to display notifications on the serial console as each module is set up.
 void bldc_setup(void)
 {
+    // Assumes InitConsole() has already been called, i.e. UARTprintf() can be called
     UARTprintf("Beginning BLDC setup...\n");
 
-    // Set up 3 digital output pins as half-bridge enable pins
+    // 1) Set up 3 digital output pins as half-bridge enable pins
     // - these 3 pins go to the DRV8323RS INLx pins (PF3-->INLA, PC4-->INLB, PC6-->INLC)
     // - each pin enables one half-bridge of the DRV8323RS
     // - default to 0 (disabled)
 
-    // Set up 3 PWM modules
+    // 2) Set up 3 PWM modules
     // - each output pin corresponds to INHx pins on DRV8323 (PF2-->INHA,PB3-->INHB,PC5-->INHC)
     // - PWM1 module, output 6 (PF2) --> INHA
     // - Timer 3 CCP 1 (PB3) --> INHB (we must use a general purpose timer as a third PWM module)
     // - PWM0 module, output 7 (PC5) --> INHC
 
-    // set up 3 analog inputs - current sense
+    // 3) set up 3 analog inputs - current sense
 
-    // Set up 1 digital output pin to enable/disable the DRV8323RS and default to 1 (enabled)
+    // 4) Set up 1 digital output pin to enable/disable the DRV8323RS and default to 1 (enabled)
 
-    // set up SPI module - required to configure DRV8323RS
+    // 5) set up SPI module - required to configure DRV8323RS
 
-    // Configure DRV8323RS in 3x PWM mode
+    // 6) Configure DRV8323RS in 3x PWM mode
     // - INHx pins receive PWM signals
     // - INLx pins function as 'enable' pins
     // - Use an SPI read to make sure the setup worked (log to the console)
 
-    // set up digital input pins - input capture interrupts for Hall sensors
+    // 7) set up digital input pins - input capture interrupts for Hall sensors
 
     UARTprintf("...BLDC setup is complete.\n");
 }
@@ -91,6 +92,8 @@ static void set_enable_phases(uint8_t floating_phase)
 }
 
 // set a particular PWM module to a particular duty cycle:
+// I left this code in place because it is a very convenient abstraction layer
+// that allows the calling function to not care how each PWM signal is generated
 static void set_pulse_width(uint8_t pwm_module, uint8_t duty_cycle)
 {
     switch (pwm_module)
@@ -119,7 +122,7 @@ static void set_pulse_width(uint8_t pwm_module, uint8_t duty_cycle)
 }
 
 // Performs the actual commutation: one phase is PWMed, one is grounded, and the third floats.
-// Not commented out because you can find it in Ch. 29 of the NU Mechatronics textbook.
+// Partly commented out because you can find it in Ch. 29 of the NU Mechatronics textbook.
 static void phases_set(int16_t pwm, phase p1, phase p2)
 {
     // given 2 energized phases, find the floating phase via lookup table 'floating'
@@ -134,7 +137,7 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
     phase phigh, plow;                  // phigh is the PWMed phase, plow is the grounded phase
     int apwm;                           // magnitude ofthe pwm count
 
-    // choose the appripriate direction
+    // choose the appropriate direction
     if (pwm > 0)
     {
         phigh = p1;
@@ -156,13 +159,13 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
     set_enable_phases(pfloat); // definined in bldc.{c,h}
 
     // Set the PWMs appropriately
-    set_pulse_width(pfloat,0);      // floating phase has 0% duty cycle
-    set_pulse_width(plow,0);        // low phase also has 0% duty cycle
-    set_pulse_width(phigh,apwm);    // high phase gets the actual duty cycle
+    // 1) floating phase has 0% duty cycle
+    // 2) low phase also has 0% duty cycle
+    // 3) high phase gets the actual duty cycle
 }
 
 // Perform commutation, given the PWM percentage and the present Hall state
-// Not commented out because you can find it in Ch. 29 of the NU Mechatronics textbook.
+// Mostly commented out because you can find it in Ch. 29 of the NU Mechatronics textbook.
 void bldc_commutate(int16_t pwm, uint8_t state)
 {
     // implement the commutation table:
@@ -170,32 +173,32 @@ void bldc_commutate(int16_t pwm, uint8_t state)
     {
         case 0x4: // 0x4, 0b100
         {
-            phases_set(pwm, PHASE_B, PHASE_A);  // if pwm > 0, phase A = GND and B is PWMed
-            break;                              // if pwm < 0, phase B = GND and A is PWMed
+            // phases_set(pwm, ??, ??);
+            break;
         }
         case 0x6: // 0x6, 0b110
         {
-            phases_set(pwm, PHASE_C, PHASE_A);
+            // phases_set(pwm, ??, ??);
             break;
         }
         case 0x2: // 0x2, 0b010
         {
-            phases_set(pwm, PHASE_C, PHASE_B);
+            // phases_set(pwm, ??, ??);
             break;
         }
         case 0x3: // 0x3, 0b011
         {
-            phases_set(pwm, PHASE_A, PHASE_B);
+            // phases_set(pwm, ??, ??);
             break;
         }
         case 0x1: // 0x1, 0b001
         {
-            phases_set(pwm, PHASE_A, PHASE_C);
+            // phases_set(pwm, ??, ??);
             break;
         }
         case 0x5: // 0x5, 0b101
         {
-            phases_set(pwm, PHASE_B, PHASE_C);
+            // phases_set(pwm, ??, ??);
             break;
         }
         default:
