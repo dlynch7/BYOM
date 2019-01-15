@@ -19,94 +19,92 @@
 #include <drv8323rs.h>
 #include <utils/uartstdio.h>
 
-
 // Initialize PWM1 module on PF2 (drives DRV8323RS - INHA)
 static void InitPWMPhaseA(void) {
     // Configure PWM clock to match system.
     SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
 
-    // Enable the peripherals used by this program.
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);
+    // Enable the peripherals used by this
+    SysCtlPeripheralEnable(DRV8323RS_PWMA_GPIO_PERIPH);
+    SysCtlPeripheralEnable(DRV8323RS_PWMA_PERIPH);
 
-    // Configure pin F2 as PWM output pin.
-    GPIOPinConfigure(GPIO_PF2_M1PWM6);
-    GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2);
+    // Configure PWM output pin
+    GPIOPinConfigure(DRV8323RS_PWMA_PIN_CONFIG);
+    GPIOPinTypePWM(DRV8323RS_PWMA_GPIO_PORT, DRV8323RS_PWMA_GPIO_PIN);
 
-    // Configure PWM options.
-    // - PWM_GEN_3 covers M1PWM6 and M1PWM7.
-    PWMGenConfigure(PWM1_BASE, PWM_GEN_3, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
+    // Configure PWM options
+    PWMGenConfigure(DRV8323RS_PWMA_BASE, DRV8323RS_PWMA_GEN, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
 
-    // Set the period (expressed in clock ticks).
-    PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, PWM_PERIOD); // PWM_PERIOD is #defined in drv8323rs.h
+    // Set the period (expressed in clock ticks)
+    PWMGenPeriodSet(DRV8323RS_PWMA_BASE, DRV8323RS_PWMA_GEN, PWM_PERIOD);
 
-    // Set the PWM duty cycle to 33%.
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, 0);
+    // Set the PWM duty cycle to 33%
+    PWMPulseWidthSet(DRV8323RS_PWMA_BASE, DRV8323RS_PWMA_OUT, 0);
 
-    // Enable the PWM generator.
-    PWMGenEnable(PWM1_BASE, PWM_GEN_3);
+    // Enable the PWM generator
+    PWMGenEnable(DRV8323RS_PWMA_BASE, DRV8323RS_PWMA_GEN);
 
-    // Turn on the PWM output pin.
-    PWMOutputState(PWM1_BASE, PWM_OUT_6_BIT, true);
+    // Turn on the PWM output pin
+    PWMOutputState(DRV8323RS_PWMA_BASE, DRV8323RS_PWMA_OUT_BIT, true);
 }
 
 
 // Create a 16-bit PWM module using Timer 3 CCP1 on PB3 (drives DRV8323RS - INHB)
 static void InitPWMPhaseB(void) {
     // Enable the Timer3 peripheral.
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
+    SysCtlPeripheralEnable(DRV8323RS_PWMB_PERIPH);
 
-    // Use T3CCP1 with port B pin 3. Start by enabling port B.
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    // Use T3CCP1 with port B pin 3. Start by enabling port B
+    SysCtlPeripheralEnable(DRV8323RS_PWMB_GPIO_PERIPH);
 
-    // Configure GPIO pin muxing for the Timer/CCP function.
-    GPIOPinConfigure(GPIO_PB3_T3CCP1);
+    // Configure GPIO pin muxing for the Timer/CCP function
+    GPIOPinConfigure(DRV8323RS_PWMB_PIN_CONFIG);
 
-    // Configure the ccp settings for CCP pin.
-    GPIOPinTypeTimer(GPIO_PORTB_BASE, GPIO_PIN_3);
+    // Configure the ccp settings for CCP pin
+    GPIOPinTypeTimer(DRV8323RS_PWMB_GPIO_PORT, DRV8323RS_PWMB_GPIO_PIN);
 
-    // Configure Timer3B as a 16-bit periodic timer.
-    TimerConfigure(TIMER3_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM);
+    // Configure Timer3B as a 16-bit periodic timer
+    TimerConfigure(DRV8323RS_PWMB_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM);
 
     // Set the Timer3B load value to PWM_PERIOD
-    TimerLoadSet(TIMER3_BASE, TIMER_B, PWM_PERIOD-1); // don't forget to -1 in the 'load' register!
+    TimerLoadSet(DRV8323RS_PWMB_BASE, DRV8323RS_PWMB_TIMER, PWM_PERIOD-1); // don't forget to -1 in the 'load' register!
 
-    // Set the Timer3B match value to load value / 3.
-    TimerMatchSet(TIMER3_BASE, TIMER_B, TimerLoadGet(TIMER3_BASE, TIMER_B));
+    // Set the Timer3B match value to load value / 3
+    TimerMatchSet(DRV8323RS_PWMB_BASE, DRV8323RS_PWMB_TIMER, TimerLoadGet(DRV8323RS_PWMB_BASE, DRV8323RS_PWMB_TIMER));
 
     // Enable Timer3B
-    TimerEnable(TIMER3_BASE, TIMER_B);
+    TimerEnable(DRV8323RS_PWMB_BASE, DRV8323RS_PWMB_TIMER);
 }
 
 
 // Initialize PWM0 module on PC5 (drives DRV8323RS - INHC)
 static void InitPWMPhaseC(void) {
-    // Configure PWM clock to match system.
+
+    // Configure PWM clock to match system
     SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
 
-    // Enable the peripherals used by this program.
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
+    // Enable the peripherals used by this
+    SysCtlPeripheralEnable(DRV8323RS_PWMC_GPIO_PERIPH);
+    SysCtlPeripheralEnable(DRV8323RS_PWMC_PERIPH);
 
-    // Configure pin C5 as PWM output pin.
-    GPIOPinConfigure(GPIO_PC5_M0PWM7);
-    GPIOPinTypePWM(GPIO_PORTC_BASE, GPIO_PIN_5);
+    // Configure PWM output pin
+    GPIOPinConfigure(DRV8323RS_PWMC_PIN_CONFIG);
+    GPIOPinTypePWM(DRV8323RS_PWMC_GPIO_PORT, DRV8323RS_PWMC_GPIO_PIN);
 
-    // Configure PWM options.
-    // - PWM_GEN_3 covers M0PWM6 and M0PWM7.
-    PWMGenConfigure(PWM0_BASE, PWM_GEN_3, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
+    // Configure PWM options
+    PWMGenConfigure(DRV8323RS_PWMC_BASE, DRV8323RS_PWMC_GEN, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
 
-    // Set the period (expressed in clock ticks).
-    PWMGenPeriodSet(PWM0_BASE, PWM_GEN_3, PWM_PERIOD); // PWM_PERIOD is #defined in drv8323rs.h
+    // Set the period (expressed in clock ticks)
+    PWMGenPeriodSet(DRV8323RS_PWMC_BASE, DRV8323RS_PWMC_GEN, PWM_PERIOD);
 
-    // Set the PWM duty cycle to 0.
-    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, 0);
+    // Set the PWM duty cycle to 33%
+    PWMPulseWidthSet(DRV8323RS_PWMC_BASE, DRV8323RS_PWMC_OUT, 0);
 
-    // Enable the PWM generator.
-    PWMGenEnable(PWM0_BASE, PWM_GEN_3);
+    // Enable the PWM generator
+    PWMGenEnable(DRV8323RS_PWMC_BASE, DRV8323RS_PWMC_GEN);
 
-    // Turn on the PWM output pin.
-    PWMOutputState(PWM0_BASE, PWM_OUT_7_BIT, true);
+    // Turn on the PWM output pin
+    PWMOutputState(DRV8323RS_PWMC_BASE, DRV8323RS_PWMC_OUT_BIT, true);
 }
 
 // Set/clear the DRV8323RS phase EN pins - in 3x PWM mode, these are INL{A:C}
@@ -238,16 +236,16 @@ static void UpdateHalls(void) {
 static void SetPhaseADutyCycle(uint8_t dutyCycle) {
     uint32_t width = ((uint32_t) (PWM_PERIOD*dutyCycle)/100);
     if(width < 1) width = 1;
-    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, width);
+    PWMPulseWidthSet(DRV8323RS_PWMA_BASE, DRV8323RS_PWMA_OUT, width);
 }
 
 // Sets the duty cycle of phase B (the PWM output associated with Timer3)
 // @param dutyCycle: The duty cycle as a percentage
 static void SetPhaseBDutyCycle(uint8_t dutyCycle) {
-    uint32_t load = TimerLoadGet(TIMER3_BASE, TIMER_B);
+    uint32_t load = TimerLoadGet(DRV8323RS_PWMB_BASE, DRV8323RS_PWMB_TIMER);
     uint32_t match = ((uint32_t) load - (load*dutyCycle)/100);
     if (match >= load) match = load - 1;
-    TimerMatchSet(TIMER3_BASE, TIMER_B, match);
+    TimerMatchSet(DRV8323RS_PWMB_BASE, DRV8323RS_PWMB_TIMER, match);
 }
 
 
@@ -256,7 +254,7 @@ static void SetPhaseBDutyCycle(uint8_t dutyCycle) {
 static void SetPhaseCDutyCycle(uint8_t dutyCycle) {
     uint32_t width = ((uint32_t) (PWM_PERIOD*dutyCycle)/100);
     if(width < 1) width = 1;
-    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, width);
+    PWMPulseWidthSet(DRV8323RS_PWMC_BASE, DRV8323RS_PWMC_OUT, width);
 }
 
 
