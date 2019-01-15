@@ -42,5 +42,6 @@ function BYOM_Analysis
     title('Imported spinup data');
     subplot(2,1,2),plot(t,accel,'k.-');ylabel('ang. acc. [deg/s^2]');
     xlabel('time [s]');
+    
 
 end

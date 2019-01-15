@@ -1,43 +1,4 @@
-//*************************************************************************************************
-//
-// main.c - controls a BLDC motor and provides a rudimentary serial user interface
-//
-// Begun: 12/13/18
-//
-// Copyright (c) 2010-2017 Texas Instruments Incorporated.  All rights reserved.
-// Software License Agreement
-//
-//   Redistribution and use in source and binary forms, with or without
-//   modification, are permitted provided that the following conditions
-//   are met:
-//
-//   Redistributions of source code must retain the above copyright
-//   notice, this list of conditions and the following disclaimer.
-//
-//   Redistributions in binary form must reproduce the above copyright
-//   notice, this list of conditions and the following disclaimer in the
-//   documentation and/or other materials provided with the
-//   distribution.
-//
-//   Neither the name of Texas Instruments Incorporated nor the names of
-//   its contributors may be used to endorse or promote products derived
-//   from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// This is part of revision 2.1.4.178 of the Tiva Firmware Development Package.
-//
-//************************************************************************************************/
+// A simple brushless motor driver.
 
 #include <math.h>
 #include <stdarg.h>
@@ -64,153 +25,132 @@
 #include "utils/uartstdio.h"
 
 #include "bldc.h"
-#include "circ_buffer.h"
 #include "drv8323rs.h"
-#include "setup.h"
 
-// Macros
-#define MOTOR_CONTROL_FREQ 5000 // frequency of timer A0 interrupt (in Hz)
-#define MENU_BUF_LEN 2 // length of serial I/O buffer for receiving stuff from client PC program
+// Frequency of timer A0 interrupt (in Hz)
+#define LOG_FREQ 5000
+
+// Number of samples to record
 #define NUM_SAMPLES 15000
 
-// Global variables
-uint8_t gSensorBufferWritePermission; // permits SensorPollHandler() to write to circ buffer
-uint8_t gSensorBufferReadPermission; // permits main() to read from circ buffer
-volatile uint16_t logData[NUM_SAMPLES]; // Stores the test data
-volatile bool doneLogging;
-volatile uint16_t logCount; // the number of samples logged
+ // Global test data array
+volatile uint16_t logData[NUM_SAMPLES];
 
-//*************************************************************************************************
-//
-// This function sets up UART0 to be used for a console to display info as the programs runs.
-//
-//************************************************************************************************/
-void InitConsole(void)
-{
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA); // Enable GPIO port A which is used for UART0 pins.
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0); // Enable UART0 so that we can configure the clock.
-    GPIOPinConfigure(GPIO_PA0_U0RX); // pin muxing
-    GPIOPinConfigure(GPIO_PA1_U0TX); // pin muxing
-    GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1); // Select the alternate (UART) function$
-    UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC); // Use the internal 16MHz oscillator as the UART$
-    UARTStdioConfig(0, 115200, SysCtlClockGet()); // Initialize the UART for console I/O.
+// Global flag set when logging completes
+volatile bool doneLogging = 0;
+
+// Global counter of the number of samples logged
+volatile uint16_t logCount = 0;
+
+
+// Sets up UART0 to be used for a console to display info as the programs runs.
+void InitConsole(void) {
+    // Enable GPIO port A which is used for UART0 pins, and enable UART0
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_UART0);
+
+    // Pin configuration
+    GPIOPinConfigure(GPIO_PA0_U0RX);
+    GPIOPinConfigure(GPIO_PA1_U0TX);
+
+    // Select the alternate (UART) function
+    GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+    // Use the internal 16MHz oscillator as the UART
+    UARTClockSourceSet(UART0_BASE, UART_CLOCK_PIOSC);
+
+    // Initialize the UART for console I/O
+    UARTStdioConfig(0, 115200, SysCtlClockGet());
+
+    // Print debug information
     UARTprintf("\n\nConsole on UART0 is up.\n");
 }
 
 
-//********************************************************************************************
-//
 // The interrupt handler for the periodic interrupt generated by Timer A0
-//
-//********************************************************************************************
-void MotorControlInterruptHandler(void)
-{
-    // clear the timer interrupt:
+void LogInterruptHandler(void) {
+    // Clear the timer interrupt
     TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
+    // Toggle pin B0, to permit validation of log frequency on oscilloscope
+    if (GPIOPinRead(GPIO_PORTB_BASE, GPIO_PIN_0))
+        GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_0, 0);
+    else
+        GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_0, GPIO_PIN_0);
+
+    // Log until the array is full
     if(logCount < NUM_SAMPLES) {
+        // Log the current and the hall state as a single 16-bit quantity
+        logData[logCount] = GetCurrent() + (HallState << 12);
 
-        logData[logCount] = get_current() + (HallState << 12);
-
-        // Increment the log entry counter
         logCount++;
-    } else
+    }
+    else
         doneLogging = 1;
-
 }
 
-//*********************************************************************************************
-//
-// This function sets up timer A0 to generate interrupts
-// at frequency specified by MOTOR_CONTROL_FREQ (#define'd above)
-//
-//*********************************************************************************************
-void TimerBegin(void)
-{
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0); // Enable the peripherals used by this example.
-    IntMasterEnable(); // Enable processor interrupts.
-    TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC); // Configure a 32-bit periodic timer.
-    TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / MOTOR_CONTROL_FREQ);
-    IntEnable(INT_TIMER0A); // Setup the interrupts for the timer timeouts.
-    IntPrioritySet(INT_TIMER0A, 0x20); // set the Timer 0A interrupt priority to be "low"
+
+// This function sets up timer A0 to generate interrupts at frequency specified by LOG_FREQ
+void LogTimerSetup(void) {
+    // Enable Timer 0
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+
+    // Enable processor interrupts
+    IntMasterEnable();
+
+    // Configure the timer as a 32-bit periodic timer
+    TimerConfigure(TIMER0_BASE, TIMER_CFG_PERIODIC);
+
+    // Set the timer load value
+    TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet() / LOG_FREQ);
+
+    // Enable timer A0 interrupts, set the timer A0 interrupt priority to be "low"
+    IntEnable(INT_TIMER0A);
+    IntPrioritySet(INT_TIMER0A, 0x20);
+
+    // Enable the specific interrupt we want (timeout interrupt), and register the interrupt service routine
     TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-    TimerEnable(TIMER0_BASE, TIMER_A); // Enable the timer.
-    TimerIntRegister(TIMER0_BASE, TIMER_A,MotorControlInterruptHandler);
-    UARTprintf("Timer A0 initialized at %d Hz!\n",MOTOR_CONTROL_FREQ);
+    TimerIntRegister(TIMER0_BASE, TIMER_A,LogInterruptHandler);
+
+    // Enable GPIO port B
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOB));
+
+    // Set pin B0 as an output, and initialize it to LOW
+    GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, GPIO_PIN_0);
+    GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_0, 0);
+
+    // Enable the timer
+    TimerEnable(TIMER0_BASE, TIMER_A);
 }
 
 
 // Main function:
 int main(void) {
-    //*****************************************************************************************
-    //
-    // Local variable declarations
-    //
-    //*****************************************************************************************
-    //uint16_t i = 0; // simple counter
-    //buf_out_t buf_line; // typedef struct that stores output from buffer_read()
-    //buf_out_t *buf_line_ptr = &buf_line;   // store address of buf_line in buf_line_prt
-    //char menu_buf[MENU_BUF_LEN]; // buffer for receiving junk from client program
 
-    //*****************************************************************************************
-    //
-    // Startup
-    //
-    //*****************************************************************************************
-    doneLogging = 0;
-    logCount = 0;
-
-    // Allow interrupt handlers to use floating-point instructions,
-    // at the expense of extra stack usage:
-    FPULazyStackingEnable();
+    FPULazyStackingEnable(); // Allow interrupt handlers to use floating-point instructions at the expense of extra stack usage
 
     // Set the clocking to run directly from the external crystal/oscillator:
     SysCtlClockSet(SYSCTL_SYSDIV_1 | SYSCTL_USE_OSC | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
 
-    // Set up the serial console to use for displaying messages:
+    // Set up the serial console
     InitConsole();
+    UARTprintf("Console initialized.\n");
 
-    // Set up PB0 (unused by DRV8323RS) as a digial output, for visualizing ISR timing:
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); // enable the GPIO port used for DRV8323RS-nSCS
-    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOB)); // check if peripheral access enabled
-    GPIOPinTypeGPIOOutput(GPIO_PORTB_BASE, GPIO_PIN_0); // enable pin PB0
-    GPIOPinWrite(GPIO_PORTB_BASE, GPIO_PIN_0, 0); // initialize PB0 to LOW
-    UARTprintf("\t\t...PB0 initialized as a digital output.\n");
+    // Set up brushless motor control
+    UARTprintf("Setting up motor drive...\n");
+    MotorSetup();
 
+    // Start the log interrupt
+    UARTprintf("Setting up log timer...\n");
+    LogTimerSetup();
 
-    // TODO: set up the interface to the DRV8323 motor driver
-    bldc_setup();
-    //gSensorBufferWritePermission = 0; // MotorControlInterruptHandler() not permitted to write to buffer
-    //gSensorBufferReadPermission = 0;  // main() not permitted to read from buffer
-    //buffer_reset();
-    TimerBegin();
+    // Read the hall state and commutate once to force the motor to start turning
+    MotorCommutate(DUTY_CYCLE);
 
-    UARTprintf("Setup complete!\n");
-
-    // Give the motor its first update
-    HallState = read_halls();
-    //print_hall_state();
-
-    // commutate:
-    bldc_commutate(-10,HallState);
-
-    //*****************************************************************************************
-    //
-    // Superloop:
-    //
-    //*****************************************************************************************
 	while(1)
 	{
 	    if(doneLogging) {
-
-	        GPIOIntDisable(HALLA_PORT, HALLA_PIN);
-	        GPIOIntDisable(HALLB_PORT, HALLB_PIN);
-	        GPIOIntDisable(HALLC_PORT, HALLC_PIN);
-
-            GPIOPinWrite(INLA_PORT, INLA_PIN, 0);
-            GPIOPinWrite(INLB_PORT, INLC_PIN, 0);
-            GPIOPinWrite(INLC_PORT, INLC_PIN, 0);
-
 	        int i;
 
 	        UARTprintf("Hall state, Current(counts)\n");
@@ -220,5 +160,6 @@ int main(void) {
 	        break;
 	    }
 	}
-    return 0; // something, somewhere, went horribly wrong.
+
+    return 0;
 }

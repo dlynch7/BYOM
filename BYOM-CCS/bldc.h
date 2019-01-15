@@ -1,39 +1,56 @@
-// Port of bldc.h in NU Mechatronics textbook from PIC32 to Tivaware.
-// Uses TI DRV8323RS gate driver instead of STM L6234 driver.
+// Functions for commutating a brushless motor.
 
 #ifndef BLDC_H
 #define BLDC_H
 
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdarg.h>
 
-// A convenient new type to use the mnemonic names PHASE_A, PHASE_B, PHASE_C, PHASE_NONE
+#include <bldc.h>
+#include <inc/hw_ints.h>
+#include <inc/hw_memmap.h>
+#include <inc/hw_types.h>
+#include <inc/hw_uart.h>
+#include <driverlib/adc.h>
+#include <driverlib/gpio.h>
+#include <driverlib/interrupt.h>
+#include <driverlib/pwm.h>
+#include <driverlib/sysctl.h>
+#include <driverlib/timer.h>
+#include <driverlib/pin_map.h>
+#include <drv8323rs.h>
+#include <utils/uartstdio.h>
+
+
+ // PWM Frequency = fsys/PWM_PERIOD = 16M/PWM_PERIOD. f_pwm < 200 kHz
+#define PWM_PERIOD 400
+
+  // The duty cycle to use, as a percentage
+#define DUTY_CYCLE 10
+
+
+// Mnemonic phase names PHASE_A, PHASE_B, PHASE_C, PHASE_NONE
 // - PHASE_NONE is not needed, but there for potential error handling.
-//typedef enum {PHASE_A = 0, PHASE_B = 1, PHASE_C = 2, PHASE_NONE = 3} phase;
 typedef enum {PHASE_A = 0, PHASE_B = 1, PHASE_C = 2, PHASE_NONE = 3} phase;
 
+
+// Globals
 volatile uint8_t HallState;
 volatile phase HighPhase;
+
 
 // Set up peripherals required to interface with DRV8323RS driver:
 // - 3 PWM modules
 // - ## GPIO pins, configured as outputs (Tiva --> DRV8323RS)
 // - 3 GPIO pins, configured as inputs (DRV8323RS --> Tiva) with interrupts (for Hall sensors)
-void bldc_setup(void);
+void MotorSetup(void);
 
-// Perform commutation, given the PWM percentage and the present Hall state:
-void bldc_commutate(int16_t pwm, uint8_t state);
-
-// Prompt the user for a signed PWM percentage:
-int16_t bldc_get_pwm(void);
-
-// print the phase currents to the serial console:
-void print_phase_currents(void);
-
-// print the hall state to the serial console:
-void print_hall_state(void);
+// Perform commutation
+void MotorCommutate();
 
 // Get's the current on the actively PWM'd phase
-uint16_t get_current(void);
+uint16_t GetCurrent(void);
 
 // Hall sensor input capture interrupt handlers:
 void HallAIntHandler(void);

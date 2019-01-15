@@ -1,176 +1,335 @@
-// Port of bldc.c in NU Mechatronics textbook from PIC32 to Tivaware.
-// Uses TI DRV8323RS gate driver instead of STM L6234 driver.
-#include "bldc.h"
+// Functions for commutating a brushless motor.
 
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
-// #include all the tiva things
-#include "inc/hw_memmap.h"
-#include "inc/hw_types.h"
-#include "driverlib/gpio.h"
-#include "driverlib/pin_map.h"
-#include "driverlib/sysctl.h"
-#include "driverlib/systick.h"
+#include <stdarg.h>
 
-#include "inc/hw_pwm.h"
-#include "driverlib/pwm.h"
+#include <bldc.h>
+#include <inc/hw_ints.h>
+#include <inc/hw_memmap.h>
+#include <inc/hw_types.h>
+#include <inc/hw_uart.h>
+#include <driverlib/adc.h>
+#include <driverlib/gpio.h>
+#include <driverlib/interrupt.h>
+#include <driverlib/pwm.h>
+#include <driverlib/sysctl.h>
+#include <driverlib/timer.h>
+#include <driverlib/pin_map.h>
+#include <drv8323rs.h>
+#include <utils/uartstdio.h>
 
-#include "driverlib/uart.h"
-#include "utils/uartstdio.h"
 
-#include "drv8323rs.h" // API for BOOSTXL-DRV8323RS motor driver devboard
-
-// Set up peripherals required to interface with DRV8323RS driver and Hall sensors
-// and configure DRV8323RS driver in 3x PWM mode.
-// - 3 PWM modules
-// - 3+1 GPIO pins, configured as outputs (Tiva --> DRV8323RS)
-// - ## GPIO pins, configured as inputs (DRV8323RS --> Tiva) with interrupts (for Hall sensors)
-// - ## analog inputs for current sensing
-// - REQUIRES InitConsole() to be called prior, because this function uses UARTprintf()
-//   to display notifications on the serial console as each module is set up.
-void bldc_setup(void)
+// Create a 16-bit PWM module using Timer 3 CCP1 on PB3 (drives DRV8323RS - INHB)
+static void InitTimerPWM(void)
 {
-    UARTprintf("Beginning BLDC setup...\n");
+    UARTprintf("\t\tInitializing PWM (via Timer3B)...\n");
 
-    // Set up 3 digital output pins as half-bridge enable pins
-    // - these 3 pins go to the DRV8323RS INLx pins (PF3-->INLA, PC4-->INLB, PC6-->INLC)
-    // - each pin enables one half-bridge of the DRV8323RS
-    // - default to 0 (disabled)
-    init_phase_enable_pins();
+    // Enable the Timer3 peripheral.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
 
-    // Set up 3 PWM modules
-    // - each output pin corresponds to INHx pins on DRV8323 (PF2-->INHA,PB3-->INHB,PC5-->INHC)
-    // - PWM1 module, output 6 (PF2) --> INHA
-    // - Timer 3 CCP 1 (PB3) --> INHB (we must use a general purpose timer as a third PWM module)
-    // - PWM0 module, output 7 (PC5) --> INHC
-    init_all_PWMs();
+    // Use T3CCP1 with port B pin 3. Start by enabling port B.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
 
-    // set up 3 analog inputs - current sense
-    // TODO: Currently hanging on waiting for ADC0 to come online
-    init_isense_ADCs();
+    // Configure GPIO pin muxing for the Timer/CCP function.
+    GPIOPinConfigure(GPIO_PB3_T3CCP1);
 
-    // Set up 1 digital output pin to enable/disable the DRV8323RS and default to 1 (enabled)
-    init_drv8323rs_enable();
+    // Assume InitConsole() has already been called by main().
 
-    // set up SPI module - required to configure DRV8323RS
-    init_drv8323rs_SPI();
+    // Configure the ccp settings for CCP pin.
+    GPIOPinTypeTimer(GPIO_PORTB_BASE, GPIO_PIN_3);
 
-    // Configure DRV8323RS in 3x PWM mode
-    // - INHx pins receive PWM signals
-    // - INLx pins function as 'enable' pins
-    //config_drv8323rs_pwm(PWM_3X_MODE);
+    // Configure Timer3B as a 16-bit periodic timer.
+    TimerConfigure(TIMER3_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM);
 
-    drv8323rs_spi_write(DRIVER_CONTROL_REG, 0x320);
+    // Set the Timer3B load value to PWM_PERIOD
+    TimerLoadSet(TIMER3_BASE, TIMER_B, PWM_PERIOD-1); // don't forget to -1 in the 'load' register!
 
-    UARTprintf("\t%x", drv8323rs_spi_read(DRIVER_CONTROL_REG));
+    // Set the Timer3B match value to load value / 3.
+    TimerMatchSet(TIMER3_BASE, TIMER_B, TimerLoadGet(TIMER3_BASE, TIMER_B));
 
-    // Turn off OCP
-    //drv8323rs_spi_write(OCP_CONTROL_REG, 0b00111111111);
+    // Enable Timer3B
+    TimerEnable(TIMER3_BASE, TIMER_B);
 
-    // set up digital input pins - input capture interrupts for Hall sensors
-    init_halls();
-
-    UARTprintf("...BLDC setup is complete.\n");
+    // Display startup notification on serial console
+    UARTprintf("\t\t...PWM (via Timer3B) initialized.\n");
 }
 
 
-// set/clear the DRV8323RS phase EN pins - in 3x PWM mode, these are INL{A:C}
-static void set_enable_phases(uint8_t floating_phase)
+// Initialize PWM0 module on PC5 (drives DRV8323RS - INHC)
+static void InitPWM0(void)
 {
-    switch(floating_phase)
+    UARTprintf("\t\tInitializing PWM0 module...\n");
+
+    // Configure PWM clock to match system.
+    SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
+
+    // Enable the peripherals used by this program.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
+
+    // Configure pin C5 as PWM output pin.
+    GPIOPinConfigure(GPIO_PC5_M0PWM7);
+    GPIOPinTypePWM(GPIO_PORTC_BASE, GPIO_PIN_5);
+
+    // Configure PWM options.
+    // - PWM_GEN_3 covers M0PWM6 and M0PWM7.
+    PWMGenConfigure(PWM0_BASE, PWM_GEN_3, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
+
+    // Set the period (expressed in clock ticks).
+    PWMGenPeriodSet(PWM0_BASE, PWM_GEN_3, PWM_PERIOD); // PWM_PERIOD is #defined in drv8323rs.h
+
+    // Set the PWM duty cycle to 0.
+    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, 0);
+
+    // Enable the PWM generator.
+    PWMGenEnable(PWM0_BASE, PWM_GEN_3);
+
+    // Turn on the PWM output pin.
+    PWMOutputState(PWM0_BASE, PWM_OUT_7_BIT, true);
+
+    // Display startup notification on serial console
+    UARTprintf("\t\t...PWM0 module initialized.\n");
+}
+
+
+// Initialize PWM1 module on PF2 (drives DRV8323RS - INHA)
+static void InitPWM1(void)
+{
+     UARTprintf("\t\tInitializing PWM1 module...\n");
+
+    // Configure PWM clock to match system.
+    SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
+
+    // Enable the peripherals used by this program.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM1);
+
+    // Configure pin F2 as PWM output pin.
+    GPIOPinConfigure(GPIO_PF2_M1PWM6);
+    GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_2);
+
+    // Configure PWM options.
+    // - PWM_GEN_3 covers M1PWM6 and M1PWM7.
+    PWMGenConfigure(PWM1_BASE, PWM_GEN_3, PWM_GEN_MODE_DOWN | PWM_GEN_MODE_NO_SYNC);
+
+    // Set the period (expressed in clock ticks).
+    PWMGenPeriodSet(PWM1_BASE, PWM_GEN_3, PWM_PERIOD); // PWM_PERIOD is #defined in drv8323rs.h
+
+    // Set the PWM duty cycle to 33%.
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, 0);
+
+    // Enable the PWM generator.
+    PWMGenEnable(PWM1_BASE, PWM_GEN_3);
+
+    // Turn on the PWM output pin.
+    PWMOutputState(PWM1_BASE, PWM_OUT_6_BIT, true);
+
+    // Display startup notification on serial console
+    UARTprintf("\t\t...PWM1 module initialized.\n");
+}
+
+
+// Set/clear the DRV8323RS phase EN pins - in 3x PWM mode, these are INL{A:C}
+// @param floatingPhase: The phase that should be disabled (floated)
+static void SetEnablePhases(phase floatingPhase) {
+    switch(floatingPhase)
     {
-        case 0: // phase A
-        {
-            // disable phase A, enable phase B, and enable phase C
-            GPIOPinWrite(INLA_PORT, INLA_PIN, 0); // disable phase A
-            GPIOPinWrite(INLB_PORT, INLB_PIN, INLB_PIN); // enable phase B
-            GPIOPinWrite(INLC_PORT, INLC_PIN, INLC_PIN); // enable phase C
-            //UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",0,1,1);
+        case PHASE_A: {
+            // Disable phase A, enable phase B, and enable phase C
+            GPIOPinWrite(DRV8323RS_INLA_PORT, DRV8323RS_INLA_PIN, 0); // Disable phase A
+            GPIOPinWrite(DRV8323RS_INLB_PORT, DRV8323RS_INLB_PIN, DRV8323RS_INLB_PIN); // Enable phase B
+            GPIOPinWrite(DRV8323RS_INLC_PORT, DRV8323RS_INLC_PIN, DRV8323RS_INLC_PIN); // Enable phase C
             break;
         }
-        case 1: // phase B
-        {
-            // enable phase A, disable phase B, and enable phase C
-            GPIOPinWrite(INLA_PORT, INLA_PIN, INLA_PIN);    // enable phase A
-            GPIOPinWrite(INLB_PORT, INLB_PIN, 0);           // disable phase B
-            GPIOPinWrite(INLC_PORT, INLC_PIN, INLC_PIN);    // enable phase C
-            //UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",1,0,1);
+        case PHASE_B: {
+            // Enable phase A, disable phase B, and enable phase C
+            GPIOPinWrite(DRV8323RS_INLA_PORT, DRV8323RS_INLA_PIN, DRV8323RS_INLA_PIN);    // Enable phase A
+            GPIOPinWrite(DRV8323RS_INLB_PORT, DRV8323RS_INLB_PIN, 0);           // Disable phase B
+            GPIOPinWrite(DRV8323RS_INLC_PORT, DRV8323RS_INLC_PIN, DRV8323RS_INLC_PIN);    // Enable phase C
             break;
         }
-        case 2: // phase C
-        {
-            // enable phase A, enable phase B, and disable phase C
-            GPIOPinWrite(INLA_PORT, INLA_PIN, INLA_PIN);    // enable phase A
-            GPIOPinWrite(INLB_PORT, INLB_PIN, INLB_PIN);    // enable phase B
-            GPIOPinWrite(INLC_PORT, INLC_PIN, 0);           // disable phase C
-            //UARTprintf("INLA = %01X, INLB = %01X, INLC = %01X.\n",1,1,0);
+        case PHASE_C: {
+            // Enable phase A, enable phase B, and disable phase C
+            GPIOPinWrite(DRV8323RS_INLA_PORT, DRV8323RS_INLA_PIN, DRV8323RS_INLA_PIN);    // Enable phase A
+            GPIOPinWrite(DRV8323RS_INLB_PORT, DRV8323RS_INLB_PIN, DRV8323RS_INLB_PIN);    // Enable phase B
+            GPIOPinWrite(DRV8323RS_INLC_PORT, DRV8323RS_INLC_PIN, 0);           // Disable phase C
             break;
         }
         default: // received a bad 'floating_phase' input
         {
-            UARTprintf("Error: 0x%02X is an unknown floating_phase.\n",floating_phase);
+            UARTprintf("Error: 0x%02X is an unknown floating_phase.\n",floatingPhase);
             break;
         }
     }
 }
 
-// set a particular PWM module to a particular duty cycle:
-static void set_pulse_width(uint8_t pwm_module, uint8_t duty_cycle)
-{
-    switch (pwm_module)
-    {
-        case 0: // phase A?
-        {
-            set_pwm1_dc(duty_cycle);
+
+// Initialize hall sensor inputs and set up interrupts for those inputs
+static void InitHalls(void) {
+    SysCtlPeripheralEnable(DRV8323RS_HALLA_PERIPH);
+    SysCtlPeripheralEnable(DRV8323RS_HALLB_PERIPH);
+    SysCtlPeripheralEnable(DRV8323RS_HALLC_PERIPH);
+
+    GPIOIntRegister(DRV8323RS_HALLA_PORT, HallAIntHandler);
+    GPIOIntRegister(DRV8323RS_HALLB_PORT, HallBIntHandler);
+    GPIOIntRegister(DRV8323RS_HALLC_PORT, HallCIntHandler);
+
+    GPIOPinTypeGPIOInput(DRV8323RS_HALLA_PORT, DRV8323RS_HALLA_PIN);
+    GPIOPinTypeGPIOInput(DRV8323RS_HALLB_PORT, DRV8323RS_HALLB_PIN);
+    GPIOPinTypeGPIOInput(DRV8323RS_HALLC_PORT, DRV8323RS_HALLC_PIN);
+
+    GPIOIntTypeSet(DRV8323RS_HALLA_PORT, DRV8323RS_HALLA_PIN, GPIO_BOTH_EDGES);
+    GPIOIntTypeSet(DRV8323RS_HALLB_PORT, DRV8323RS_HALLB_PIN, GPIO_BOTH_EDGES);
+    GPIOIntTypeSet(DRV8323RS_HALLC_PORT, DRV8323RS_HALLC_PIN, GPIO_BOTH_EDGES);
+
+    IntPrioritySet(DRV8323RS_HALLA_INT, 0x00);
+    IntPrioritySet(DRV8323RS_HALLB_INT, 0x00);
+    IntPrioritySet(DRV8323RS_HALLC_INT, 0x00);
+
+    GPIOIntEnable(DRV8323RS_HALLA_PORT, DRV8323RS_HALLA_PIN);
+    GPIOIntEnable(DRV8323RS_HALLB_PORT, DRV8323RS_HALLB_PIN);
+    GPIOIntEnable(DRV8323RS_HALLC_PORT, DRV8323RS_HALLC_PIN);
+
+}
+
+
+// Initialize current sense inputs
+static void InitADC(void) {
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_ADC0)) {;} // wait until ADC0 module is ready
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);    // need PE1/AIN2 (ISENB) and PE2/AIN1 (ISENA)
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);    // need PD3/AIN4 (ISENC)
+
+    GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_1);    // PE1/AIN2 (ISENB)
+    GPIOPinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_2);    // PE2/AIN1 (ISENA)
+    GPIOPinTypeADC(GPIO_PORTD_BASE, GPIO_PIN_3);    // PD3/AIN4 (ISENC)
+    ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_PROCESSOR, 0); // sequence 1 (SS1) - 4 samples
+    ADCSequenceStepConfigure(ADC0_BASE, 1, 0, ADC_CTL_CH4);
+    ADCSequenceStepConfigure(ADC0_BASE, 1, 1, ADC_CTL_CH2);
+    ADCSequenceStepConfigure(ADC0_BASE, 1, 2, ADC_CTL_CH1 | ADC_CTL_IE | ADC_CTL_END);
+    ADCSequenceEnable(ADC0_BASE, 1);
+    ADCIntClear(ADC0_BASE, 1);
+}
+
+
+// Initialize the phase enable output pins
+static void InitPhaseEnable(void) {
+    SysCtlPeripheralEnable(DRV8323RS_INLA_PERIPH);
+    SysCtlPeripheralEnable(DRV8323RS_INLB_PERIPH);
+    SysCtlPeripheralEnable(DRV8323RS_INLC_PERIPH);
+
+    while(!SysCtlPeripheralReady(DRV8323RS_INLA_PERIPH)); // check if peripheral access enabled
+    GPIOPinTypeGPIOOutput(DRV8323RS_INLA_PORT, DRV8323RS_INLA_PIN); // enable pin INLA
+    GPIOPinWrite(DRV8323RS_INLA_PORT, DRV8323RS_INLA_PIN, 0); // initialize INLA to LOW
+
+    while(!SysCtlPeripheralReady(DRV8323RS_INLB_PERIPH)); // check if peripheral access enabled
+    GPIOPinTypeGPIOOutput(DRV8323RS_INLB_PORT, DRV8323RS_INLB_PIN); // enable pin INLB
+    GPIOPinWrite(DRV8323RS_INLB_PORT, DRV8323RS_INLB_PIN, 0); // initialize INLB to LOW
+
+    while(!SysCtlPeripheralReady(DRV8323RS_INLC_PERIPH)); // check if peripheral access enabled
+    GPIOPinTypeGPIOOutput(DRV8323RS_INLC_PORT, DRV8323RS_INLC_PIN); // enable pin INLC
+    GPIOPinWrite(DRV8323RS_INLC_PORT, DRV8323RS_INLC_PIN, DRV8323RS_INLC_PIN); // initialize INLC to LOW
+}
+
+
+// Initialize the PWM outputs
+static void InitPWM(void){
+    InitTimerPWM();
+    InitPWM0();
+    InitPWM1();
+}
+
+
+// Updates the hall sensor state global.
+static void UpdateHalls(void) {
+    HallState = ((uint8_t) (((GPIOPinRead(DRV8323RS_HALLC_PORT, DRV8323RS_HALLC_PIN) & DRV8323RS_HALLC_PIN) >> 2) \
+                    | ((GPIOPinRead(DRV8323RS_HALLB_PORT, DRV8323RS_HALLB_PIN) & DRV8323RS_HALLB_PIN) << 1) \
+                    | ((GPIOPinRead(DRV8323RS_HALLA_PORT, DRV8323RS_HALLA_PIN) & DRV8323RS_HALLA_PIN) >> 2)));
+}
+
+
+// Sets the duty cycle of the PWM output associated with Timer3
+// @param dutyCycle: The duty cycle as a percentage
+static void SetTimerPWMDutyCycle(uint8_t dutyCycle) {
+    uint32_t load = TimerLoadGet(TIMER3_BASE, TIMER_B);
+    uint32_t match = ((uint32_t) load - (load*dutyCycle)/100);
+    if (match >= load) match = load - 1;
+    TimerMatchSet(TIMER3_BASE, TIMER_B, match);
+}
+
+
+// Sets the duty cycle of the PWM output associated with PWM0
+// @param dutyCycle: The duty cycle as a percentage
+static void SetPWM0DutyCycle(uint8_t dutyCycle) {
+    uint32_t width = ((uint32_t) (PWM_PERIOD*dutyCycle)/100);
+    if(width < 1) width = 1;
+    PWMPulseWidthSet(PWM0_BASE, PWM_OUT_7, width);
+}
+
+
+// Sets the duty cycle of the PWM output associated with PWM1
+// @param dutyCycle: The duty cycle as a percentage
+static void SetPWM1DutyCycle(uint8_t dutyCycle) {
+    uint32_t width = ((uint32_t) (PWM_PERIOD*dutyCycle)/100);
+    if(width < 1) width = 1;
+    PWMPulseWidthSet(PWM1_BASE, PWM_OUT_6, width);
+}
+
+
+// Set a particular phase's PWM output to a particular duty cycle.
+// @param phase: The phase to set
+// @param dutyCycle: The duty cycle as a percentage
+static void SetPulseWidth(phase phase, uint8_t dutyCycle) {
+    switch (phase) {
+        case PHASE_A: {
+            SetPWM1DutyCycle(dutyCycle);
             break;
         }
-        case 1: // phase B?
-        {
-            set_timer_pwm_dc(duty_cycle);
+        case PHASE_B: {
+            SetTimerPWMDutyCycle(dutyCycle);
             break;
         }
-        case 2: // phase C?
-        {
-            set_pwm0_dc(duty_cycle);
+        case PHASE_C: {
+            SetPWM0DutyCycle(dutyCycle);
             break;
         }
-        default:
-        {
-            UARTprintf("Error: 0x%02X is an unknown pwm_module value.\n",pwm_module);
+        default: {
+            UARTprintf("Error: 0x%02X is an unknown phase value.\n",phase);
             break;
         }
     }
 }
 
-// Performs the actual commutation: one phase is PWMed, one is grounded, and the third floats.
-static void phases_set(int16_t pwm, phase p1, phase p2)
-{
-    // an array of the addresses of the PWM duty cycle-controlling SFRs
-    //static volatile unsigned int * ocr[] = {&OC1RS, &OC2RS, &OC3RS, &OC4RS, &OC5RS, &OC6RS};
 
-    // given 2 energized phases, find the floating phase via lookup table 'floating'
-    // - if p1 and p2 are the energized phases, then floating[p1][p2] gives the floating phase.
-    // - NOTE: p1 should not equal p2 (that would be an error - use assert()?),
-    //   so the diagonal entries in the 2d matrix are the bogus PHASE_NONE
+// Sets one phase to "ground" (zero PWM), one to PWM, and the third floating.
+// @param pwm: The signed pwm percentage from -100 to 100
+// @param p1: The first enabled phase
+// @param p2: The second enabled phase
+static void SetPhases(int16_t pwm, phase p1, phase p2) {
+    // Given 2 energized phases, find the floating phase via lookup table 'floating'
+    // If p1 and p2 are the energized phases, then floating[p1][p2] gives the floating phase
     static phase floating[3][3] =   {{PHASE_NONE,   PHASE_C,    PHASE_B},
                                      {PHASE_C,      PHASE_NONE, PHASE_A},
                                      {PHASE_B,      PHASE_A,    PHASE_NONE}};
 
-    phase pfloat = floating[p1][p2];    // the floating phase
-    phase phigh, plow;                  // phigh is the PWMed phase, plow is the grounded phase
-    int apwm;                           // magnitude ofthe pwm count
+    // The floating phase
+    phase pfloat = floating[p1][p2];
 
-    // choose the appripriate direction
-    if (pwm > 0)
-    {
+    // phigh is the PWMed phase, plow is the grounded phase
+    phase phigh, plow;
+
+    // Will store the magnitude of the pwm count
+    int apwm;
+
+    // Choose the direction
+    if (pwm > 0) {
         phigh = p1;
         plow = p2;
         apwm = pwm;
     }
-    else
-    {
+    else {
         phigh = p2;
         plow = p1;
         apwm = -pwm;
@@ -179,138 +338,128 @@ static void phases_set(int16_t pwm, phase p1, phase p2)
     // Record the PWM'd phase for current demuxing
     HighPhase = phigh;
 
-    // Set/clear the three ENABLE pins (INLx) according to elow_bits[pfloat]
-    // - uses an abstraction layer defined in drv8323rs.{c,h}
-    set_enable_phases(pfloat); // definined in bldc.{c,h}
+    // Sets the phase enable outputs so the appropriate phase is left floating
+    SetEnablePhases(pfloat); // definined in bldc.{c,h}
 
     // Set the PWMs appropriately
-    set_pulse_width(pfloat,0);      // floating phase has 0% duty cycle
-    set_pulse_width(plow,0);        // low phase also has 0% duty cycle
-    set_pulse_width(phigh,apwm);    // high phase gets the actual duty cycle
+    SetPulseWidth(pfloat,0);      // floating phase has 0% duty cycle (technically doesn't matter)
+    SetPulseWidth(plow,0);        // low phase also has 0% duty cycle
+    SetPulseWidth(phigh,apwm);    // high phase gets the actual duty cycle
 }
 
-// Perform commutation, given the PWM percentage and the present Hall state
-void bldc_commutate(int16_t pwm, uint8_t state)
-{
-    //UARTprintf("bldc_commutate: pwm = 0d%d, state = 0x%02X.\n",pwm,state);
 
-    switch(state)
+// Sets up peripherals required to interface with DRV8323RS driver and hall sensors,
+// and configures DRV8323RS driver in 3X PWM mode.
+void MotorSetup(void) {
+    // Initialize phase enable pins
+    InitPhaseEnable();
+
+    // Initialize PWM outputs
+    InitPWM();
+
+    // Initialize ADCs
+    InitADC();
+
+    // Initialize serial communication with DRV8323RS, and set to 3X PWM mode
+    InitDRV8323RS();
+    SPIWriteDRV8323(DRV8323RS_DRIVER_CONTROL_REG, 0x320);
+    UARTprintf("%x",SPIReadDRV8323(DRV8323RS_DRIVER_CONTROL_REG));
+
+    // Initialize hall sensor interrupts
+    InitHalls();
+}
+
+
+// Perform commutation
+void MotorCommutate()
+{
+    UpdateHalls();
+
+    switch(HallState)
     {
         case 0x4: // 0x4, 0b100
         {
-            phases_set(pwm, PHASE_B, PHASE_A);  // if pwm > 0, phase A = GND and B is PWMed
+            SetPhases(DUTY_CYCLE, PHASE_B, PHASE_A);  // if pwm > 0, phase A = GND and B is PWMed
             break;                              // if pwm < 0, phase B = GND and A is PWMed
         }
         case 0x6: // 0x6, 0b110
         {
-            phases_set(pwm, PHASE_C, PHASE_A);
+            SetPhases(DUTY_CYCLE, PHASE_C, PHASE_A);
             break;
         }
         case 0x2: // 0x2, 0b010
         {
-            phases_set(pwm, PHASE_C, PHASE_B);
+            SetPhases(DUTY_CYCLE, PHASE_C, PHASE_B);
             break;
         }
         case 0x3: // 0x3, 0b011
         {
-            phases_set(pwm, PHASE_A, PHASE_B);
+            SetPhases(DUTY_CYCLE, PHASE_A, PHASE_B);
             break;
         }
         case 0x1: // 0x1, 0b001
         {
-            phases_set(pwm, PHASE_A, PHASE_C);
+            SetPhases(DUTY_CYCLE, PHASE_A, PHASE_C);
             break;
         }
         case 0x5: // 0x5, 0b101
         {
-            phases_set(pwm, PHASE_B, PHASE_C);
+            SetPhases(DUTY_CYCLE, PHASE_B, PHASE_C);
             break;
         }
         default:
         {
             // print an error msg to the serial console
-            UARTprintf("Error: 0x%02X is an unknown commutation state.\n",state);
+            UARTprintf("Error: 0x%02X is an unknown commutation state.\n",HallState);
             break;
         }
     }
 }
 
-// Prompt the user for a signed PWM percentage
-int16_t bldc_get_pwm(void);
-
-
-// print the phase currents to the serial console:
-void print_phase_currents(void)
-{
-    uint32_t phase_curr_arr[4] = {0};
-    read_ISEN_ABC(phase_curr_arr);
-    UARTprintf("[ADC] A: %d, B: %d, C: %d.\n",
-        phase_curr_arr[2],phase_curr_arr[1],phase_curr_arr[0]);
-}
-
-
-
 // Gets the current from the phase that is being PWM'd
-uint16_t get_current(void)
-{
-    uint32_t phase_curr_arr[4] = {0};
-    read_ISEN_ABC(phase_curr_arr);
+// @return: The current reading on the phase that is being PWM'd
+uint16_t GetCurrent(void) {
+    // Array to store current reading
+    uint32_t phaseCurrents[4] = {0};
+
+    // Trigger the ADC conversion
+    ADCProcessorTrigger(ADC0_BASE, 1);
+
+    // Wait for conversion to be completed
+    while(!ADCIntStatus(ADC0_BASE, 1, false)) {;}
+
+    // Clear the ADC interrupt flag
+    ADCIntClear(ADC0_BASE, 1);
+
+    // phase_curr_arr must have 4 elements in it! No error checking here.
+    ADCSequenceDataGet(ADC0_BASE, 1, phaseCurrents);
 
     switch(HighPhase) {
         case PHASE_A:
-            return phase_curr_arr[2] & 0x0FFF;
+            return phaseCurrents[2] & 0x0FFF;
         case PHASE_B:
-            return phase_curr_arr[1] & 0x0FFF;
+            return phaseCurrents[1] & 0x0FFF;
         case PHASE_C:
-            return phase_curr_arr[0] & 0x0FFF;
+            return phaseCurrents[0] & 0x0FFF;
         default:
             return 0;
     }
 }
 
-
-// print the hall state to the serial console:
-void print_hall_state(void)
-{
-    uint8_t temp_hall = HallState; // HallState is a global variable declared in bldc.h
-
-    UARTprintf("H[A]: %01X, H[B]: %01X, H[C]: %01X.\n",
-        temp_hall & 0x01, (temp_hall & 0x02) >> 1, (temp_hall & 0x04) >> 2);
+// Hall sensor A interrupt handler
+void HallAIntHandler(void) {
+    GPIOIntClear(DRV8323RS_HALLA_PORT, DRV8323RS_HALLA_PIN);
+    MotorCommutate();
 }
 
-// Hall sensor input capture interrupt handlers:
-void HallAIntHandler(void)
-{
-    GPIOIntClear(HALLA_PORT, HALLA_PIN);    // clear interrupt flag
-
-    // update Hall states:
-    HallState = read_halls();
-    //print_hall_state();
-
-    // commutate:
-    bldc_commutate(-10,HallState);
+// Hall sensor B interrupt handler
+void HallBIntHandler(void) {
+    GPIOIntClear(DRV8323RS_HALLB_PORT, DRV8323RS_HALLB_PIN);
+    MotorCommutate();
 }
 
-void HallBIntHandler(void)
-{
-    GPIOIntClear(HALLB_PORT, HALLB_PIN);    // clear interrupt flag
-
-    // update Hall states:
-    HallState = read_halls();
-    //print_hall_state();
-
-    // commutate:
-    bldc_commutate(-10,HallState);
-}
-
-void HallCIntHandler(void)
-{
-    GPIOIntClear(HALLC_PORT, HALLC_PIN);    // clear interrupt flag
-
-    // update Hall states:
-    HallState = read_halls();
-    //print_hall_state();
-
-    // commutate:
-    bldc_commutate(-10,HallState);
+// Hall sensor C interrupt handler
+void HallCIntHandler(void) {
+    GPIOIntClear(DRV8323RS_HALLC_PORT, DRV8323RS_HALLC_PIN);
+    MotorCommutate();
 }
